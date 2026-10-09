@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EZ Gutter Quote — Exact Gutter Pricing Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============ LANDING HERO ============ -->
+<header class="hero" id="hero">
+  <nav class="nav">
+    <div class="logo"><span class="logo-mark">EZ</span> Gutter Quote</div>
+    <button class="btn btn-ghost" data-start>Get my quote</button>
+  </nav>
+
+  <div class="hero-content">
+    <p class="eyebrow">Online gutter quotes · No home visit required</p>
+    <h1>Your exact gutter price,<br /><span class="grad">without the sales pitch.</span></h1>
+    <p class="hero-sub">
+      No tape measure. No ladder. No lengthy in-home sales presentation.
+      Answer a few quick questions and we'll digitally measure your home.
+    </p>
+    <button class="btn btn-primary btn-lg" data-start>
+      Start my free quote
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="hero-trust">
+      <span>✓ Takes about 2 minutes</span>
+      <span>✓ Satellite-measured</span>
+      <span>✓ No obligation</span>
+    </div>
+  </div>
+  <div class="hero-glow" aria-hidden="true"></div>
+</header>
+
+<!-- ============ QUESTIONNAIRE ============ -->
+<main class="quiz hidden" id="quiz">
+  <div class="quiz-top">
+    <button class="back-btn" id="backBtn" aria-label="Go back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M11 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back
+    </button>
+    <div class="progress-wrap" role="progressbar" aria-label="Form progress" aria-valuemin="0" aria-valuemax="100" id="progressBar">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-label" id="progressLabel">Step 1</span>
+    </div>
+  </div>
+
+  <div class="step-viewport" id="stepViewport">
+
+    <!-- 1. Address -->
+    <section class="step" data-step="address">
+      <span class="step-tag">Property</span>
+      <h2>Where do you need gutters installed?</h2>
+      <div class="field">
+        <label for="addrStreet">Street address</label>
+        <input type="text" id="addrStreet" autocomplete="street-address" placeholder="123 Main Street" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="addrCity">City</label>
+          <input type="text" id="addrCity" autocomplete="address-level2" placeholder="Springfield" />
+        </div>
+        <div class="field field-sm">
+          <label for="addrState">State</label>
+          <input type="text" id="addrState" autocomplete="address-level1" placeholder="FL" maxlength="2" />
+        </div>
+        <div class="field field-sm">
+          <label for="addrZip">ZIP</label>
+          <input type="text" id="addrZip" autocomplete="postal-code" placeholder="32801" inputmode="numeric" maxlength="10" />
+        </div>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue</button>
+    </section>
+
+    <!-- 2. Project type -->
+    <section class="step" data-step="projectType">
+      <span class="step-tag">Project</span>
+      <h2>What does your home need?</h2>
+      <div class="options" data-field="projectType" data-type="radio" data-autoadvance>
+        <button class="option" data-value="replace-all"><span class="option-icon">🔄</span>Replace all existing gutters</button>
+        <button class="option" data-value="replace-some"><span class="option-icon">🧩</span>Replace some existing gutters</button>
+        <button class="option" data-value="new-install"><span class="option-icon">✨</span>Install gutters where there aren’t any now</button>
+        <button class="option" data-value="not-sure"><span class="option-icon">🤔</span>Not sure</button>
+      </div>
+    </section>
+
+    <!-- 3. Gutter protection -->
+    <section class="step" data-step="protection">
+      <span class="step-tag">Protection</span>
+      <h2>Are you interested in gutter protection?</h2>
+      <div class="options" data-field="protection" data-type="radio" data-autoadvance>
+        <button class="option" data-value="gutters-only"><span class="option-icon">〰️</span>Gutters only</button>
+        <button class="option" data-value="gutters-guards"><span class="option-icon">🛡️</span>Gutters + gutter guards</button>
+        <button class="option" data-value="both-pricing"><span class="option-icon">⚖️</span>Show me pricing both ways</button>
+      </div>
+    </section>
+
+    <!-- 4. Height -->
+    <section class="step" data-step="height">
+      <span class="step-tag">Home</span>
+      <h2>How high are the gutters?</h2>
+      <div class="options" data-field="height" data-type="radio" data-autoadvance>
+        <button class="option" data-value="1-story"><span class="option-icon">🏠</span>Mostly 1 story</button>
+        <button class="option" data-value="2-story"><span class="option-icon">🏡</span>Mostly 2 stories</button>
+        <button class="option" data-value="3-plus"><span class="option-icon">🏢</span>3 stories or higher</button>
+        <button class="option" data-value="combo"><span class="option-icon">🤷</span>Combination / not sure</button>
+      </div>
+    </section>
+
+    <!-- 5. Problems (replacements only) -->
+    <section class="step" data-step="problems">
+      <span class="step-tag">Current gutters</span>
+      <h2>What’s happening with your current gutters?</h2>
+      <p class="step-hint">Select all that apply.</p>
+      <div class="options options-grid" data-field="problems" data-type="checkbox">
+        <button class="option option-chip" data-value="leaking">Leaking</button>
+        <button class="option option-chip" data-value="overflowing">Overflowing</button>
+        <button class="option option-chip" data-value="pulling-away">Pulling away</button>
+        <button class="option option-chip" data-value="sagging">Sagging</button>
+        <button class="option option-chip" data-value="damaged">Damaged</button>
+        <button class="option option-chip" data-value="too-small">Too small</button>
+        <button class="option option-chip" data-value="just-old">Just old / replacing them</button>
+        <button class="option option-chip" data-value="not-sure">Not sure</button>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue</button>
+    </section>
+
+    <!-- 6. Fascia -->
+    <section class="step" data-step="fascia">
+      <span class="step-tag">Fascia</span>
+      <h2>How does the wood behind your gutters look?</h2>
+      <div class="options" data-field="fascia" data-type="radio" data-autoadvance>
+        <button class="option" data-value="good"><span class="option-icon">✅</span>Looks good</button>
+        <button class="option" data-value="some-damage"><span class="option-icon">⚠️</span>Some visible damage or rot</button>
+        <button class="option" data-value="significant"><span class="option-icon">🚧</span>Significant damage</button>
+        <button class="option" data-value="cant-tell"><span class="option-icon">👀</span>Can’t tell</button>
+      </div>
+      <p class="step-note">Note: We’ll verify the condition before installation.</p>
+    </section>
+
+    <!-- 7. Downspouts -->
+    <section class="step" data-step="downspouts">
+      <span class="step-tag">Downspouts</span>
+      <h2>What would you like us to do with your downspouts?</h2>
+      <div class="options" data-field="downspouts" data-type="radio" data-autoadvance>
+        <button class="option" data-value="replace"><span class="option-icon">🔧</span>Replace existing downspouts</button>
+        <button class="option" data-value="improve"><span class="option-icon">💧</span>Add or improve drainage where needed</button>
+        <button class="option" data-value="keep"><span class="option-icon">👍</span>Keep existing downspouts if possible</button>
+        <button class="option" data-value="recommend"><span class="option-icon">💡</span>Not sure — recommend what’s needed</button>
+      </div>
+    </section>
+
+    <!-- 8. Underground drainage -->
+    <section class="step" data-step="underground">
+      <span class="step-tag">Drainage</span>
+      <h2>Do any downspouts connect to underground drains?</h2>
+      <div class="options options-inline" data-field="underground" data-type="radio">
+        <button class="option option-pill" data-value="yes">Yes</button>
+        <button class="option option-pill" data-value="no">No</button>
+        <button class="option option-pill" data-value="not-sure">Not sure</button>
+      </div>
+      <div class="followup hidden" id="undergroundFollowup">
+        <h3>Should new downspouts reconnect?</h3>
+        <div class="options options-inline" data-field="reconnect" data-type="radio">
+          <button class="option option-pill" data-value="yes">Yes</button>
+          <button class="option option-pill" data-value="no">No</button>
+          <button class="option option-pill" data-value="not-sure">Not sure</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue</button>
+    </section>
+
+    <!-- 9. Special conditions -->
+    <section class="step" data-step="special">
+      <span class="step-tag">Details</span>
+      <h2>Does your home have any of these?</h2>
+      <p class="step-hint">Select all that apply.</p>
+      <div class="options options-grid" data-field="special" data-type="checkbox" data-exclusive="none,not-sure">
+        <button class="option option-chip" data-value="screened-porch">Screened porch</button>
+        <button class="option option-chip" data-value="pool-enclosure">Pool enclosure</button>
+        <button class="option option-chip" data-value="metal-roof">Metal roof</button>
+        <button class="option option-chip" data-value="steep-roof">Very steep roof</button>
+        <button class="option option-chip" data-value="over-30ft">Gutters over 30 feet high</button>
+        <button class="option option-chip" data-value="difficult-access">Difficult access on one or more sides</button>
+        <button class="option option-chip" data-value="none">None of these</button>
+        <button class="option option-chip" data-value="not-sure">Not sure</button>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>See my estimate</button>
+    </section>
+
+    <!-- Preliminary estimate -->
+    <section class="step step-center" data-step="estimate">
+      <div class="estimate-card">
+        <span class="step-tag tag-good">Good news</span>
+        <h2>Your project may qualify for an online quote</h2>
+        <p class="estimate-sub">Based on the information you provided, your estimated project range is:</p>
+        <div class="estimate-range" id="estimateRange">$0–$0</div>
+        <div class="estimate-alt hidden" id="estimateAlt"></div>
+        <p class="estimate-disclaimer">
+          This is not a final or binding price. We’ll digitally measure your home to prepare a verified quote.
+        </p>
+        <button class="btn btn-primary btn-lg" data-next>GET MY EXACT PRICE</button>
+      </div>
+    </section>
+
+    <!-- 10. Contact -->
+    <section class="step" data-step="contact">
+      <span class="step-tag">Almost there</span>
+      <h2>Where should we send your exact EZ Quote?</h2>
+      <div class="field-row">
+        <div class="field">
+          <label for="firstName">First name</label>
+          <input type="text" id="firstName" autocomplete="given-name" placeholder="Jane" />
+        </div>
+        <div class="field">
+          <label for="lastName">Last name</label>
+          <input type="text" id="lastName" autocomplete="family-name" placeholder="Smith" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="email" placeholder="jane@example.com" />
+      </div>
+      <div class="field">
+        <label for="phone">Mobile phone</label>
+        <input type="tel" id="phone" autocomplete="tel" placeholder="(555) 123-4567" inputmode="tel" />
+      </div>
+
+      <div class="consent-box">
+        <label class="consent">
+          <input type="checkbox" id="consentQuote" checked disabled />
+          <span>We’ll email and text you about <strong>your quote only</strong> — scheduling, verification, and quote delivery. These operational messages are required to provide your quote.</span>
+        </label>
+        <label class="consent">
+          <input type="checkbox" id="consentMarketing" />
+          <span><strong>Optional:</strong> Yes, you may also contact me by call or text with offers and promotions. Consent is not a condition of purchase. Message and data rates may apply. Reply STOP to opt out.</span>
+        </label>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue</button>
+    </section>
+
+    <!-- 11. Timing -->
+    <section class="step" data-step="timing">
+      <span class="step-tag">Timing</span>
+      <h2>If your exact price is within the estimated range, when would you want the work completed?</h2>
+      <div class="options" data-field="timing" data-type="radio" data-autoadvance>
+        <button class="option" data-value="asap"><span class="option-icon">⚡</span>As soon as possible</button>
+        <button class="option" data-value="30-days"><span class="option-icon">📅</span>Within 30 days</button>
+        <button class="option" data-value="1-3-months"><span class="option-icon">🗓️</span>Within 1–3 months</button>
+        <button class="option" data-value="comparing"><span class="option-icon">🔍</span>I’m comparing options</button>
+        <button class="option" data-value="researching"><span class="option-icon">📚</span>Just researching</button>
+      </div>
+    </section>
+
+    <!-- Photo verification (conditional) -->
+    <section class="step" data-step="photos">
+      <span class="step-tag">Verification</span>
+      <h2>Please upload photos to confirm installation conditions</h2>
+      <p class="step-hint">
+        We have your home’s basic measurements. Photos help us verify: front, right, back, left,
+        and any damaged or unusual areas. <strong>Do not climb a ladder.</strong>
+      </p>
+      <div class="photo-grid" id="photoGrid">
+        <label class="photo-slot" data-side="Front"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Front</span></label>
+        <label class="photo-slot" data-side="Right"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Right side</span></label>
+        <label class="photo-slot" data-side="Back"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Back</span></label>
+        <label class="photo-slot" data-side="Left"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Left side</span></label>
+        <label class="photo-slot" data-side="Other"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Damaged / unusual areas</span></label>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Submit photos</button>
+      <button class="btn btn-ghost btn-skip" data-next>I’ll add photos later</button>
+    </section>
+
+    <!-- Final quote -->
+    <section class="step step-center" data-step="finalQuote">
+      <div class="estimate-card quote-card">
+        <span class="step-tag tag-good">Your EZ Quote</span>
+        <h2 id="finalGreeting">Here’s your verified quote</h2>
+        <div class="estimate-range" id="finalPrice">$0</div>
+        <p class="estimate-sub">installed</p>
+        <ul class="quote-scope" id="quoteScope"></ul>
+        <div class="quote-meta">
+          <p><strong>Installer:</strong> EZ Gutter Co. · Licensed &amp; insured · Lic #GC-000000</p>
+          <p><strong>Warranty:</strong> Lifetime workmanship · 20-year finish warranty</p>
+          <p><strong>Payment:</strong> $0 due today · Balance due on completed installation</p>
+          <p class="quote-conditions" id="quoteConditions"></p>
+        </div>
+        <button class="btn btn-primary btn-lg" id="acceptBtn">REVIEW &amp; ACCEPT QUOTE</button>
+        <p class="estimate-disclaimer">Final pricing confirmed after digital measurement and any required site verification.</p>
+      </div>
+    </section>
+
+    <!-- Done -->
+    <section class="step step-center" data-step="done">
+      <div class="estimate-card">
+        <div class="done-check">✓</div>
+        <h2>You’re all set!</h2>
+        <p class="estimate-sub">We’ve received your request. Your EZ Quote and next steps are on their way to your inbox.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <p>© 2026 EZ Gutter Co. · Licensed &amp; insured · Estimates are preliminary until verified by digital measurement.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
