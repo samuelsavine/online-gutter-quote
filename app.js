@@ -5,6 +5,10 @@
    ======================================================================== */
 const state = {
   address: {},
+  latLng: null,
+  gutterFeet: null,
+  traceSkipped: false,
+  wantsPhotos: false,
   projectType: null,
   protection: null,
   height: null,
@@ -38,6 +42,7 @@ const needsPhotoReview = () => {
 
 const FLOW = [
   { id: "address" },
+  { id: "measure" },
   { id: "projectType" },
   { id: "protection" },
   { id: "height" },
@@ -49,7 +54,7 @@ const FLOW = [
   { id: "estimate", noProgress: true },
   { id: "contact" },
   { id: "timing" },
-  { id: "photos", when: needsPhotoReview },
+  { id: "photos", when: () => needsPhotoReview() || state.wantsPhotos },
   { id: "finalQuote", noProgress: true },
   { id: "done", noProgress: true },
 ];
@@ -78,6 +83,7 @@ function showStep(id, { back = false } = {}) {
   if (back) el.classList.add("anim-back");
   currentId = id;
 
+  if (id === "measure") initMeasureStep();
   if (id === "estimate") renderEstimate();
   if (id === "finalQuote") renderFinalQuote();
 
@@ -152,6 +158,10 @@ function validateStep(id) {
         };
       }
       return ok;
+    }
+    case "measure": {
+      state.gutterFeet = trace.points.length >= 3 ? Math.round(tracePerimeterFeet()) : null;
+      return true;
     }
     case "problems":
       return true; // optional multi-select
@@ -251,16 +261,203 @@ $$(".options").forEach((group) => {
 });
 
 /* ========================================================================
+   Gutter trace — satellite map + auto footprint + editable outline
+   ======================================================================== */
+const trace = { map: null, points: [], polygon: null, markers: [], geocoded: null };
+
+const FT_PER_M = 3.28084;
+
+function haversineMeters(a, b) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+function tracePerimeterFeet() {
+  const pts = trace.points;
+  if (pts.length < 2) return 0;
+  let m = 0;
+  for (let i = 0; i < pts.length; i++) {
+    m += haversineMeters(pts[i], pts[(i + 1) % pts.length]);
+  }
+  return m * FT_PER_M;
+}
+
+function setMapStatus(text) {
+  const el = $("#mapStatus");
+  el.textContent = text;
+  el.classList.toggle("hidden", !text);
+}
+
+async function geocodeAddress() {
+  const { street, city, state: st, zip } = state.address;
+  const q = encodeURIComponent(`${street}, ${city}, ${st} ${zip}`);
+  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${q}&benchmark=Public_AR_Current&format=json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("geocode failed");
+  const data = await res.json();
+  const match = data.result?.addressMatches?.[0];
+  if (!match) throw new Error("address not found");
+  return { lat: match.coordinates.y, lng: match.coordinates.x };
+}
+
+// FEMA USA Structures (US government dataset, hosted on Esri ArcGIS)
+const FOOTPRINT_URL =
+  "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0/query";
+
+async function fetchFootprint(lat, lng) {
+  const params = new URLSearchParams({
+    f: "geojson",
+    geometry: `${lng},${lat}`,
+    geometryType: "esriGeometryPoint",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    distance: "40",
+    units: "esriSRUnit_Meter",
+    outFields: "OBJECTID",
+    returnGeometry: "true",
+  });
+  const res = await fetch(`${FOOTPRINT_URL}?${params}`);
+  if (!res.ok) throw new Error("footprint query failed");
+  const data = await res.json();
+  const polys = (data.features || []).filter((f) => f.geometry?.type === "Polygon");
+  if (!polys.length) return null;
+  // Nearest building by centroid distance
+  let best = null, bestDist = Infinity;
+  for (const f of polys) {
+    const ring = f.geometry.coordinates[0];
+    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+    const d = haversineMeters({ lat, lng }, { lat: cy, lng: cx });
+    if (d < bestDist) { bestDist = d; best = ring; }
+  }
+  const pts = best.map((p) => ({ lat: p[1], lng: p[0] }));
+  if (pts.length > 1 && pts[0].lat === pts[pts.length - 1].lat && pts[0].lng === pts[pts.length - 1].lng) {
+    pts.pop();
+  }
+  return pts;
+}
+
+function updateTraceUI() {
+  const ft = Math.round(tracePerimeterFeet());
+  const badge = $("#footageBadge");
+  badge.classList.toggle("hidden", trace.points.length < 3);
+  $("#footageValue").textContent = ft.toLocaleString("en-US");
+  redrawTrace();
+}
+
+function redrawTrace() {
+  const { map } = trace;
+  if (trace.polygon) { trace.polygon.remove(); trace.polygon = null; }
+  trace.markers.forEach((m) => m.remove());
+  trace.markers = [];
+  if (!map) return;
+
+  if (trace.points.length >= 2) {
+    trace.polygon = L.polygon(trace.points, {
+      color: "#38bdf8", weight: 3, fillColor: "#38bdf8", fillOpacity: 0.12,
+    }).addTo(map);
+  }
+
+  trace.points.forEach((pt, i) => {
+    const marker = L.marker(pt, {
+      draggable: true,
+      icon: L.divIcon({ className: "vertex-handle", iconSize: [14, 14] }),
+    }).addTo(map);
+    marker.on("drag", (e) => {
+      trace.points[i] = e.target.getLatLng();
+      if (trace.polygon) trace.polygon.setLatLngs(trace.points);
+      const ft = Math.round(tracePerimeterFeet());
+      $("#footageValue").textContent = ft.toLocaleString("en-US");
+    });
+    marker.on("dragend", updateTraceUI);
+    marker.on("dblclick", () => {
+      trace.points.splice(i, 1);
+      updateTraceUI();
+    });
+    trace.markers.push(marker);
+  });
+}
+
+async function initMeasureStep() {
+  const mapDiv = $("#traceMap");
+
+  if (!trace.map) {
+    trace.map = L.map(mapDiv, { zoomControl: true, attributionControl: true, doubleClickZoom: false });
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }
+    ).addTo(trace.map);
+    trace.map.on("click", (e) => {
+      trace.points.push(e.latlng);
+      updateTraceUI();
+    });
+  }
+  // Leaflet needs a size recalc after the step becomes visible
+  setTimeout(() => trace.map.invalidateSize(), 50);
+
+  const addrKey = JSON.stringify(state.address);
+  if (trace.geocoded === addrKey) return; // same address, keep existing trace
+  trace.geocoded = addrKey;
+  trace.points = [];
+  updateTraceUI();
+
+  setMapStatus("Locating your home…");
+  try {
+    const { lat, lng } = await geocodeAddress();
+    state.latLng = { lat, lng };
+    trace.map.setView([lat, lng], 20);
+
+    setMapStatus("Looking up your home’s outline…");
+    const footprint = await fetchFootprint(lat, lng).catch(() => null);
+    if (footprint) {
+      trace.points = footprint;
+      trace.map.fitBounds(L.latLngBounds(footprint).pad(0.4));
+      $("#measureHint").textContent =
+        "We found your home’s outline. Drag the corner handles to match where gutters go, click the map to add corners, double-click a handle to remove it.";
+    } else {
+      $("#measureHint").textContent =
+        "We couldn’t auto-detect your home’s outline. Click the corners of your roofline on the map to trace where gutters go.";
+    }
+    setMapStatus("");
+    updateTraceUI();
+  } catch {
+    setMapStatus("");
+    trace.map.setView([39.5, -98.35], 4); // US overview fallback
+    $("#measureHint").textContent =
+      "We couldn’t locate that address automatically. Zoom to your home and click the corners of your roofline — or skip this step.";
+  }
+}
+
+$("#undoPointBtn").addEventListener("click", () => {
+  trace.points.pop();
+  updateTraceUI();
+});
+
+$("#clearTraceBtn").addEventListener("click", () => {
+  trace.points = [];
+  updateTraceUI();
+});
+
+/* ========================================================================
    Pricing — preliminary heuristic, never presented as final
    ======================================================================== */
 function estimateRange() {
-  let low = 1400, high = 2400; // 1-story baseline
-
+  // Per-foot pricing when the user confirmed a trace; flat baseline otherwise
+  let low, high;
   const heightMult = { "1-story": 1, "2-story": 1.35, "3-plus": 1.7, combo: 1.3 }[state.height] || 1.2;
-  low *= heightMult;
-  high *= heightMult;
 
-  if (state.projectType === "replace-some") { low *= 0.55; high *= 0.7; }
+  if (state.gutterFeet) {
+    low = state.gutterFeet * 9 * heightMult;
+    high = state.gutterFeet * 13 * heightMult;
+  } else {
+    low = 1400 * heightMult;
+    high = 2400 * heightMult;
+    if (state.projectType === "replace-some") { low *= 0.55; high *= 0.7; }
+  }
 
   if (state.fascia === "some-damage") { high += 500; }
   if (state.fascia === "significant") { low += 400; high += 1200; }
@@ -284,6 +481,10 @@ const fmt = (n) => "$" + n.toLocaleString("en-US");
 function renderEstimate() {
   const { low, high, guardsLow, guardsHigh } = estimateRange();
   const alt = $("#estimateAlt");
+
+  $("#estimateBasis").textContent = state.gutterFeet
+    ? `Based on your confirmed outline (~${state.gutterFeet} ft of gutter run), your estimated project range is:`
+    : "Based on the information you provided, your estimated project range is:";
 
   if (state.protection === "gutters-guards") {
     $("#estimateRange").textContent = `${fmt(guardsLow)}–${fmt(guardsHigh)}`;
@@ -329,7 +530,9 @@ function renderFinalQuote() {
 
   const scope = [
     projectLabel,
-    `6" seamless aluminum K-style gutters · color matched from 25+ options`,
+    state.gutterFeet
+      ? `~${state.gutterFeet} linear ft · 6" seamless aluminum K-style gutters · color matched from 25+ options`
+      : `6" seamless aluminum K-style gutters · color matched from 25+ options`,
     withGuards ? "Premium micro-mesh gutter guards on all new gutters" : "Open-top gutters (guards available as an add-on)",
     downspoutLabel,
   ];
@@ -384,6 +587,14 @@ $$("[data-start]").forEach((btn) =>
 $$("[data-next]").forEach((btn) => btn.addEventListener("click", goNext));
 $("#backBtn").addEventListener("click", goBack);
 $("#acceptBtn").addEventListener("click", goNext);
+
+$("#photoBoostBtn").addEventListener("click", () => { state.wantsPhotos = true; });
+$("#skipMeasureBtn").addEventListener("click", () => {
+  state.traceSkipped = true;
+  trace.points = [];
+  updateTraceUI();
+  goNext();
+});
 
 // Enter advances text-input steps
 document.addEventListener("keydown", (e) => {

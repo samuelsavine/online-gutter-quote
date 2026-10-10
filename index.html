@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -76,6 +77,29 @@
         </div>
       </div>
       <button class="btn btn-primary btn-next" data-next>Continue</button>
+    </section>
+
+    <!-- 1b. Gutter trace / measurement -->
+    <section class="step" data-step="measure">
+      <span class="step-tag">Your home</span>
+      <h2>Confirm your home’s outline</h2>
+      <p class="step-hint" id="measureHint">
+        Drag the corner handles to match your roofline where gutters go.
+        Click the map to add corners. Double-click a handle to remove it.
+      </p>
+      <div class="map-wrap">
+        <div id="traceMap"></div>
+        <div class="map-overlay" id="mapStatus">Locating your home…</div>
+        <div class="footage-badge hidden" id="footageBadge">
+          <span id="footageValue">0</span> ft of gutter run
+        </div>
+      </div>
+      <div class="map-controls">
+        <button class="btn btn-ghost btn-sm" id="undoPointBtn">Undo point</button>
+        <button class="btn btn-ghost btn-sm" id="clearTraceBtn">Clear &amp; retrace</button>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Looks right — continue</button>
+      <button class="btn btn-ghost btn-skip" id="skipMeasureBtn">Skip — estimate without measuring</button>
     </section>
 
     <!-- 2. Project type -->
@@ -199,13 +223,16 @@
       <div class="estimate-card">
         <span class="step-tag tag-good">Good news</span>
         <h2>Your project may qualify for an online quote</h2>
-        <p class="estimate-sub">Based on the information you provided, your estimated project range is:</p>
+        <p class="estimate-sub" id="estimateBasis">Based on the information you provided, your estimated project range is:</p>
         <div class="estimate-range" id="estimateRange">$0–$0</div>
         <div class="estimate-alt hidden" id="estimateAlt"></div>
         <p class="estimate-disclaimer">
           This is not a final or binding price. We’ll digitally measure your home to prepare a verified quote.
         </p>
         <button class="btn btn-primary btn-lg" data-next>GET MY EXACT PRICE</button>
+        <button class="btn btn-ghost btn-skip" id="photoBoostBtn" data-next>
+          📷 Boost accuracy — add photos of your home for a higher-fidelity estimate
+        </button>
       </div>
     </section>
 
@@ -261,10 +288,11 @@
     <!-- Photo verification (conditional) -->
     <section class="step" data-step="photos">
       <span class="step-tag">Verification</span>
-      <h2>Please upload photos to confirm installation conditions</h2>
+      <h2>Upload photos of your home</h2>
       <p class="step-hint">
-        We have your home’s basic measurements. Photos help us verify: front, right, back, left,
-        and any damaged or unusual areas. <strong>Do not climb a ladder.</strong>
+        Our automated review uses your photos to verify gutter lines, heights, and installation
+        conditions for a higher-fidelity price: front, right, back, left, and any damaged or
+        unusual areas. <strong>Do not climb a ladder.</strong>
       </p>
       <div class="photo-grid" id="photoGrid">
         <label class="photo-slot" data-side="Front"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Front</span></label>
@@ -312,6 +340,7 @@
   <p>© 2026 EZ Gutter Co. · Licensed &amp; insured · Estimates are preliminary until verified by digital measurement.</p>
 </footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="app.js"></script>
 </body>
 </html>

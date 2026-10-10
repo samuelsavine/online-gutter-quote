@@ -455,6 +455,65 @@ body {
 
 .quote-conditions { color: #fbbf24; }
 
+/* ============ Trace map ============ */
+.map-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 0.9rem;
+}
+
+#traceMap {
+  height: 380px;
+  width: 100%;
+  background: var(--surface-2);
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 17, 32, 0.72);
+  font-weight: 600;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.footage-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 500;
+  background: rgba(11, 17, 32, 0.85);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  pointer-events: none;
+}
+
+.vertex-handle {
+  background: #fff;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(2, 6, 23, 0.6);
+  cursor: grab;
+}
+
+.map-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.25rem;
+}
+
+.btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; }
+
 /* ============ Photos ============ */
 .photo-grid {
   display: grid;
