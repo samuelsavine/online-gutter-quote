@@ -1,8 +1,20 @@
 # EZ Gutter Quote — Online Gutter Quote Mockup
 
 **Live demo:** https://samuelsavine.github.io/online-gutter-quote/
+**Team portal (demo roles):** https://samuelsavine.github.io/online-gutter-quote/portal.html
 
-A customer-facing questionnaire (MVP v1.0) that produces a preliminary gutter installation estimate online — no tape measure, no ladder, no in-home sales presentation.
+A customer-facing questionnaire (MVP v1.0) that produces a preliminary gutter installation estimate online — no tape measure, no ladder, no in-home sales presentation — plus a prototype contractor marketplace behind it.
+
+### Demo accounts (no passwords)
+
+| Email | Role |
+|---|---|
+| admin@ezgutter.com | Admin — settings, contractor verification, compliance exports |
+| sales@ezgutter.com | Sales associate — jobs + message center |
+| maria@capefeargutters.com | Licensed contractor (all job sizes) |
+| deshawn@coastalrain.com | Unlicensed contractor (capped at regional threshold) |
+
+Prototype data lives in your browser's localStorage — each visitor gets their own sandbox. To reset the demo, clear site data (or run `localStorage.removeItem("ezgq.db.v1")` in the console).
 
 ## What's implemented
 
@@ -18,7 +30,7 @@ A customer-facing questionnaire (MVP v1.0) that produces a preliminary gutter in
 - "Existing gutter problems" shown only for replacement projects.
 - Underground drainage reveals a reconnect follow-up only on "Yes".
 - "None of these / Not sure" chips are mutually exclusive with other selections.
-- Photo verification step triggers on escalation flags (visible rot/fascia damage, 3+ stories, metal/steep roof, gutters over 30 ft, difficult access) — or when the user opts into the photo "boost accuracy" path.
+- Every lead is prompted (optionally) to upload house/gutter photos for a faster, more accurate quote.
 
 ### Satellite gutter measurement (all free, US-based services)
 After the address step, the home is located and its outline is pre-drawn on satellite imagery for the user to confirm or adjust:
@@ -72,4 +84,4 @@ Static site, no build step:
 git clone https://github.com/samuelsavine/online-gutter-quote.git
 ```
 
-Open `index.html` in a browser.
+Open `index.html` in a browser (the portal is `portal.html`). Payments use the simulated test card `4242 4242 4242 4242`.
