@@ -1,0 +1,5 @@
+*.json.tmp
+out.json
+r*.txt
+response.json
+fema.json
