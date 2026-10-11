@@ -292,30 +292,62 @@ function setMapStatus(text) {
   el.classList.toggle("hidden", !text);
 }
 
-async function geocodeAddress() {
-  const { street, city, state: st, zip } = state.address;
-  const q = encodeURIComponent(`${street}, ${city}, ${st} ${zip}`);
-  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${q}&benchmark=Public_AR_Current&format=json`;
+// Strip unit designators that confuse exact-match geocoders
+function cleanStreet(street) {
+  return street.replace(/\s+(apt|apartment|unit|suite|ste|#|lot|trlr)\.?\s*\S*$/i, "").trim();
+}
+
+async function esriGeocode(oneline) {
+  const params = new URLSearchParams({
+    f: "json", singleLine: oneline, maxLocations: "1", countryCode: "USA", outFields: "Addr_type",
+  });
+  const res = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const c = data.candidates?.[0];
+  if (!c || c.score < 80) return null;
+  return { lat: c.location.y, lng: c.location.x, rooftop: c.attributes?.Addr_type === "PointAddress" };
+}
+
+async function censusGeocode(oneline) {
+  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(oneline)}&benchmark=Public_AR_Current&format=json`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error("geocode failed");
+  if (!res.ok) return null;
   const data = await res.json();
   const match = data.result?.addressMatches?.[0];
-  if (!match) throw new Error("address not found");
-  return { lat: match.coordinates.y, lng: match.coordinates.x };
+  if (!match) return null;
+  return { lat: match.coordinates.y, lng: match.coordinates.x, rooftop: false };
+}
+
+async function geocodeAddress() {
+  const { street, city, state: st, zip } = state.address;
+  const attempts = [
+    () => esriGeocode(`${street}, ${city}, ${st} ${zip}`),
+    () => esriGeocode(`${cleanStreet(street)}, ${city}, ${st} ${zip}`),
+    () => censusGeocode(`${street}, ${city}, ${st} ${zip}`),
+    () => censusGeocode(`${cleanStreet(street)}, ${city}, ${st} ${zip}`),
+    () => censusGeocode(`${cleanStreet(street)}, ${zip}`),
+    () => esriGeocode(`${zip}`).then((r) => r && { ...r, zipOnly: true }),
+  ];
+  for (const attempt of attempts) {
+    const hit = await attempt().catch(() => null);
+    if (hit) return hit;
+  }
+  throw new Error("address not found");
 }
 
 // FEMA USA Structures (US government dataset, hosted on Esri ArcGIS)
 const FOOTPRINT_URL =
   "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0/query";
 
-async function fetchFootprint(lat, lng) {
+async function fetchFootprint(lat, lng, radiusMeters) {
   const params = new URLSearchParams({
     f: "geojson",
     geometry: `${lng},${lat}`,
     geometryType: "esriGeometryPoint",
     inSR: "4326",
     spatialRel: "esriSpatialRelIntersects",
-    distance: "40",
+    distance: String(radiusMeters),
     units: "esriSRUnit_Meter",
     outFields: "OBJECTID",
     returnGeometry: "true",
@@ -407,12 +439,22 @@ async function initMeasureStep() {
 
   setMapStatus("Locating your home…");
   try {
-    const { lat, lng } = await geocodeAddress();
-    state.latLng = { lat, lng };
-    trace.map.setView([lat, lng], 20);
+    const loc = await geocodeAddress();
+    state.latLng = { lat: loc.lat, lng: loc.lng };
 
+    if (loc.zipOnly) {
+      trace.map.setView([loc.lat, loc.lng], 15);
+      setMapStatus("");
+      $("#measureHint").textContent =
+        "We found your ZIP area but not the exact address. Zoom to your home and click the corners of your roofline — or skip this step.";
+      return;
+    }
+
+    trace.map.setView([loc.lat, loc.lng], 20);
     setMapStatus("Looking up your home’s outline…");
-    const footprint = await fetchFootprint(lat, lng).catch(() => null);
+    // Street-interpolated points can sit well away from the structure
+    const radius = loc.rooftop ? 40 : 100;
+    const footprint = await fetchFootprint(loc.lat, loc.lng, radius).catch(() => null);
     if (footprint) {
       trace.points = footprint;
       trace.map.fitBounds(L.latLngBounds(footprint).pad(0.4));
