@@ -1,6 +1,7 @@
 # EZ Gutter Quote — Online Gutter Quote Mockup
 
 **Live demo:** https://samuelsavine.github.io/online-gutter-quote/
+
 **Team portal (demo roles):** https://samuelsavine.github.io/online-gutter-quote/portal.html
 
 A customer-facing questionnaire (MVP v1.0) that produces a preliminary gutter installation estimate online — no tape measure, no ladder, no in-home sales presentation — plus a prototype contractor marketplace behind it.
