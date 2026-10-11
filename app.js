@@ -8,7 +8,7 @@ const state = {
   latLng: null,
   gutterFeet: null,
   traceSkipped: false,
-  wantsPhotos: false,
+  photoCount: 0,
   projectType: null,
   protection: null,
   height: null,
@@ -20,7 +20,7 @@ const state = {
   special: [],
   contact: {},
   consentMarketing: false,
-  timing: null,
+  timeframe: { start: null, end: null },
 };
 
 /* ========================================================================
@@ -51,11 +51,10 @@ const FLOW = [
   { id: "downspouts" },
   { id: "underground" },
   { id: "special" },
-  { id: "estimate", noProgress: true },
+  { id: "photos" },
   { id: "contact" },
-  { id: "timing" },
-  { id: "photos", when: () => needsPhotoReview() || state.wantsPhotos },
-  { id: "finalQuote", noProgress: true },
+  { id: "timeframe" },
+  { id: "estimate", noProgress: true },
   { id: "done", noProgress: true },
 ];
 
@@ -84,8 +83,8 @@ function showStep(id, { back = false } = {}) {
   currentId = id;
 
   if (id === "measure") initMeasureStep();
+  if (id === "timeframe") initTimeframeStep();
   if (id === "estimate") renderEstimate();
-  if (id === "finalQuote") renderFinalQuote();
 
   updateProgress();
   $("#backBtn").disabled = history.length === 0 || id === "done";
@@ -116,9 +115,9 @@ function updateProgress() {
     pct = (idx / steps.length) * 100;
     label = `Step ${idx + 1} of ${steps.length}`;
   } else {
-    // Interstitial screens (estimate, photos, quote, done) count as complete-ish
+    // Interstitial screens (estimate, done) count as complete-ish
     const passed = history.filter((h) => steps.some((s) => s.id === h)).length;
-    pct = currentId === "done" || currentId === "finalQuote" ? 100 : (passed / steps.length) * 100;
+    pct = currentId === "done" ? 100 : (passed / steps.length) * 100;
     label = pct >= 100 ? "Complete" : `${Math.round(pct)}%`;
   }
   $("#progressFill").style.width = `${pct}%`;
@@ -172,6 +171,17 @@ function validateStep(id) {
     }
     case "special":
       return true;
+    case "timeframe": {
+      const start = $("#tfStart"), end = $("#tfEnd");
+      const today = new Date().toISOString().slice(0, 10);
+      const startBad = !start.value || start.value < today;
+      const endBad = !end.value || end.value < start.value;
+      markInvalid(start, startBad);
+      markInvalid(end, endBad);
+      if (startBad || endBad) return false;
+      state.timeframe = { start: start.value, end: end.value };
+      return true;
+    }
     case "contact": {
       const first = $("#firstName"), last = $("#lastName"), email = $("#email"), phone = $("#phone");
       let ok = true;
@@ -524,9 +534,10 @@ function renderEstimate() {
   const { low, high, guardsLow, guardsHigh } = estimateRange();
   const alt = $("#estimateAlt");
 
+  const photoNote = state.photoCount > 0 ? " Your photos will speed up verification." : "";
   $("#estimateBasis").textContent = state.gutterFeet
-    ? `Based on your confirmed outline (~${state.gutterFeet} ft of gutter run), your estimated project range is:`
-    : "Based on the information you provided, your estimated project range is:";
+    ? `Based on your confirmed outline (~${state.gutterFeet} ft of gutter run):${photoNote}`
+    : `Based on the information you provided:${photoNote}`;
 
   if (state.protection === "gutters-guards") {
     $("#estimateRange").textContent = `${fmt(guardsLow)}–${fmt(guardsHigh)}`;
@@ -539,67 +550,95 @@ function renderEstimate() {
     $("#estimateRange").textContent = `${fmt(low)}–${fmt(high)}`;
     alt.classList.add("hidden");
   }
+
+  const deposit = Store.settings().depositAmount;
+  $("#depositExplain").textContent =
+    `Lock in your estimate and get matched with a vetted local contractor with a refundable $${deposit} deposit.`;
+  $("#depositBtn").textContent = `Reserve my quote — $${deposit} deposit`;
 }
 
 /* ========================================================================
-   Final quote
+   Timeframe
    ======================================================================== */
-function renderFinalQuote() {
+function initTimeframeStep() {
+  const today = new Date().toISOString().slice(0, 10);
+  $("#tfStart").min = today;
+  $("#tfEnd").min = today;
+  if (!$("#tfStart").value) $("#tfStart").value = today;
+}
+
+$("#tfPresets").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-days]");
+  if (!btn) return;
+  $$("#tfPresets .option").forEach((o) => o.classList.remove("selected"));
+  btn.classList.add("selected");
+  const start = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + parseInt(btn.dataset.days, 10));
+  $("#tfStart").value = start.toISOString().slice(0, 10);
+  $("#tfEnd").value = end.toISOString().slice(0, 10);
+});
+
+/* ========================================================================
+   Deposit → qualified lead → job posted to contractor board
+   ======================================================================== */
+function customerJobAmount() {
   const { low, high, guardsLow, guardsHigh } = estimateRange();
   const withGuards = state.protection === "gutters-guards";
-  const price = withGuards
+  return withGuards
     ? Math.round((guardsLow + guardsHigh) / 2 / 50) * 50
     : Math.round((low + high) / 2 / 50) * 50;
+}
 
-  $("#finalPrice").textContent = fmt(price);
-  if (state.contact.firstName) {
-    $("#finalGreeting").textContent = `${state.contact.firstName}, here’s your verified quote`;
-  }
+async function handleDeposit() {
+  const deposit = Store.settings().depositAmount;
+  const result = await Payments.checkout({
+    amount: deposit,
+    description: `Refundable deposit — gutter installation at ${state.address.street}`,
+    lineItems: [{ label: "Qualified-lead deposit (credited to job)", amount: deposit }],
+  });
+  if (result.status !== "succeeded") return;
 
-  const projectLabel = {
-    "replace-all": "Full gutter replacement — removal and haul-away of existing gutters included",
-    "replace-some": "Partial gutter replacement — removal of affected sections included",
-    "new-install": "New gutter installation on all eligible rooflines",
-    "not-sure": "Gutter installation scope confirmed by digital measurement",
-  }[state.projectType];
+  const actor = state.contact.email;
+  const contact = Store.addContact(
+    { ...state.contact, address: state.address, marketingConsent: state.consentMarketing },
+    actor
+  );
+  const { low, high } = estimateRange();
+  const region = Store.regionFor(state.address);
+  const job = Store.addJob({
+    contactId: contact.id,
+    address: state.address,
+    region: region ? region.code : null,
+    details: {
+      projectType: state.projectType,
+      protection: state.protection,
+      height: state.height,
+      problems: state.problems,
+      fascia: state.fascia,
+      downspouts: state.downspouts,
+      underground: state.underground,
+      reconnect: state.reconnect,
+      special: state.special,
+    },
+    gutterFeet: state.gutterFeet,
+    photosProvided: state.photoCount > 0,
+    photoCount: state.photoCount,
+    estimateLow: low,
+    estimateHigh: high,
+    amount: customerJobAmount(),
+    timeframe: state.timeframe,
+  }, actor);
+  Store.addPayment(job.id, {
+    type: "deposit",
+    amount: deposit,
+    stripeId: result.id,
+    split: Payments.computeSplit(job, "deposit"),
+  }, actor);
 
-  const downspoutLabel = {
-    replace: "All downspouts replaced (quantity per digital measurement)",
-    improve: "Downspouts plus added/improved drainage where needed",
-    keep: "Existing downspouts retained where serviceable",
-    recommend: "Downspout plan recommended by our measurement team",
-  }[state.downspouts];
-
-  const scope = [
-    projectLabel,
-    state.gutterFeet
-      ? `~${state.gutterFeet} linear ft · 6" seamless aluminum K-style gutters · color matched from 25+ options`
-      : `6" seamless aluminum K-style gutters · color matched from 25+ options`,
-    withGuards ? "Premium micro-mesh gutter guards on all new gutters" : "Open-top gutters (guards available as an add-on)",
-    downspoutLabel,
-  ];
-  if (state.underground === "yes" && state.reconnect === "yes") {
-    scope.push("New downspouts reconnected to existing underground drains");
-  }
-  scope.push("Exclusions: fascia/soffit carpentry beyond minor repair, roof work, landscaping restoration");
-
-  $("#quoteScope").innerHTML = scope.map((s) => `<li>${s}</li>`).join("");
-
-  const conditions = [];
-  if (state.fascia === "some-damage" || state.fascia === "significant") {
-    conditions.push("fascia condition");
-  }
-  if (state.height === "3-plus" || state.special.includes("over-30ft")) {
-    conditions.push("working height");
-  }
-  if (state.special.includes("difficult-access")) conditions.push("site access");
-  if (state.special.includes("metal-roof") || state.special.includes("steep-roof")) {
-    conditions.push("roof configuration");
-  }
-
-  $("#quoteConditions").textContent = conditions.length
-    ? `⚠ Subject to on-site verification of: ${conditions.join(", ")}.`
-    : "";
+  $("#trackJobLink").href = `job.html?job=${job.id}&email=${encodeURIComponent(contact.email)}`;
+  history.push(currentId);
+  showStep("done");
 }
 
 /* ========================================================================
@@ -608,9 +647,10 @@ function renderFinalQuote() {
 $$(".photo-slot input").forEach((input) => {
   input.addEventListener("change", () => {
     const slot = input.closest(".photo-slot");
-    if (input.files.length) {
+    if (input.files.length && !slot.classList.contains("filled")) {
       slot.classList.add("filled");
       slot.querySelector(".photo-icon").textContent = "✅";
+      state.photoCount++;
     }
   });
 });
@@ -628,9 +668,8 @@ $$("[data-start]").forEach((btn) =>
 
 $$("[data-next]").forEach((btn) => btn.addEventListener("click", goNext));
 $("#backBtn").addEventListener("click", goBack);
-$("#acceptBtn").addEventListener("click", goNext);
+$("#depositBtn").addEventListener("click", handleDeposit);
 
-$("#photoBoostBtn").addEventListener("click", () => { state.wantsPhotos = true; });
 $("#skipMeasureBtn").addEventListener("click", () => {
   state.traceSkipped = true;
   trace.points = [];

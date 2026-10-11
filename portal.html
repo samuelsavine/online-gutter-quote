@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EZ Gutter Quote — Team Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="portal-body">
+
+<nav class="nav">
+  <a class="logo" href="index.html"><span class="logo-mark">EZ</span> Gutter Quote</a>
+  <div class="nav-right">
+    <span id="whoami" class="whoami hidden"></span>
+    <button class="btn btn-ghost btn-sm hidden" id="logoutBtn">Sign out</button>
+  </div>
+</nav>
+
+<!-- Login -->
+<main class="portal-login" id="loginView">
+  <div class="estimate-card login-card">
+    <span class="step-tag">Team portal</span>
+    <h2>Sign in</h2>
+    <p class="step-hint">Contractors, admins, and sales associates only.</p>
+    <div class="field">
+      <label for="loginEmail">Work email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email" />
+    </div>
+    <button class="btn btn-primary" id="loginBtn">Sign in</button>
+    <p class="pay-error hidden" id="loginError">No account found for that email.</p>
+    <div class="demo-hint">
+      <strong>Prototype accounts</strong> (no password):
+      <ul>
+        <li>admin@ezgutter.com — admin</li>
+        <li>sales@ezgutter.com — sales</li>
+        <li>maria@capefeargutters.com — licensed contractor</li>
+        <li>deshawn@coastalrain.com — unlicensed contractor</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<!-- Portal -->
+<main class="portal hidden" id="portalView">
+  <div class="tabs" id="tabs"></div>
+  <div id="tabContent"></div>
+</main>
+
+<footer class="footer"><p>© 2026 EZ Gutter Co. · Internal use only · All activity is logged for compliance.</p></footer>
+
+<script src="store.js"></script>
+<script src="payments.js"></script>
+<script src="portal.js"></script>
+</body>
+</html>

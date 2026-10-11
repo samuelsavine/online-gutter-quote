@@ -218,21 +218,23 @@
       <button class="btn btn-primary btn-next" data-next>See my estimate</button>
     </section>
 
-    <!-- Preliminary estimate -->
+    <!-- Preliminary estimate + deposit -->
     <section class="step step-center" data-step="estimate">
       <div class="estimate-card">
-        <span class="step-tag tag-good">Good news</span>
-        <h2>Your project may qualify for an online quote</h2>
-        <p class="estimate-sub" id="estimateBasis">Based on the information you provided, your estimated project range is:</p>
+        <span class="step-tag tag-good">Your estimate</span>
+        <h2>Your estimated project range</h2>
+        <p class="estimate-sub" id="estimateBasis">Based on the information you provided:</p>
         <div class="estimate-range" id="estimateRange">$0–$0</div>
         <div class="estimate-alt hidden" id="estimateAlt"></div>
         <p class="estimate-disclaimer">
-          This is not a final or binding price. We’ll digitally measure your home to prepare a verified quote.
+          <strong>This is a non-binding estimate and may be inaccurate.</strong> Final pricing is
+          confirmed by your contractor after verified measurement of your home.
         </p>
-        <button class="btn btn-primary btn-lg" data-next>GET MY EXACT PRICE</button>
-        <button class="btn btn-ghost btn-skip" id="photoBoostBtn" data-next>
-          📷 Boost accuracy — add photos of your home for a higher-fidelity estimate
-        </button>
+        <div class="deposit-box">
+          <p id="depositExplain"></p>
+          <button class="btn btn-primary btn-lg" id="depositBtn">Reserve my quote</button>
+          <p class="estimate-disclaimer">Your deposit is credited toward the final job price.</p>
+        </div>
       </div>
     </section>
 
@@ -272,27 +274,36 @@
       <button class="btn btn-primary btn-next" data-next>Continue</button>
     </section>
 
-    <!-- 11. Timing -->
-    <section class="step" data-step="timing">
+    <!-- 11. Installation timeframe -->
+    <section class="step" data-step="timeframe">
       <span class="step-tag">Timing</span>
-      <h2>If your exact price is within the estimated range, when would you want the work completed?</h2>
-      <div class="options" data-field="timing" data-type="radio" data-autoadvance>
-        <button class="option" data-value="asap"><span class="option-icon">⚡</span>As soon as possible</button>
-        <button class="option" data-value="30-days"><span class="option-icon">📅</span>Within 30 days</button>
-        <button class="option" data-value="1-3-months"><span class="option-icon">🗓️</span>Within 1–3 months</button>
-        <button class="option" data-value="comparing"><span class="option-icon">🔍</span>I’m comparing options</button>
-        <button class="option" data-value="researching"><span class="option-icon">📚</span>Just researching</button>
+      <h2>When would you like the work completed?</h2>
+      <p class="step-hint">Pick the window that works for you — your contractor will confirm an exact date inside it.</p>
+      <div class="field-row">
+        <div class="field">
+          <label for="tfStart">Earliest start</label>
+          <input type="date" id="tfStart" />
+        </div>
+        <div class="field">
+          <label for="tfEnd">Latest completion</label>
+          <input type="date" id="tfEnd" />
+        </div>
       </div>
+      <div class="options options-inline" id="tfPresets">
+        <button class="option option-pill" data-days="14">Within 2 weeks</button>
+        <button class="option option-pill" data-days="30">Within 30 days</button>
+        <button class="option option-pill" data-days="90">Within 3 months</button>
+      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue</button>
     </section>
 
     <!-- Photo verification (conditional) -->
     <section class="step" data-step="photos">
-      <span class="step-tag">Verification</span>
-      <h2>Upload photos of your home</h2>
+      <span class="step-tag">Optional — recommended</span>
+      <h2>Want a faster, more accurate quote?</h2>
       <p class="step-hint">
-        Our automated review uses your photos to verify gutter lines, heights, and installation
-        conditions for a higher-fidelity price: front, right, back, left, and any damaged or
-        unusual areas. <strong>Do not climb a ladder.</strong>
+        Add photos of your house and gutters and we can verify conditions sooner — front, right,
+        back, left, and any damaged or unusual areas. <strong>Do not climb a ladder.</strong>
       </p>
       <div class="photo-grid" id="photoGrid">
         <label class="photo-slot" data-side="Front"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Front</span></label>
@@ -301,35 +312,17 @@
         <label class="photo-slot" data-side="Left"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Left side</span></label>
         <label class="photo-slot" data-side="Other"><input type="file" accept="image/*" hidden /><span class="photo-icon">📷</span><span>Damaged / unusual areas</span></label>
       </div>
-      <button class="btn btn-primary btn-next" data-next>Submit photos</button>
-      <button class="btn btn-ghost btn-skip" data-next>I’ll add photos later</button>
-    </section>
-
-    <!-- Final quote -->
-    <section class="step step-center" data-step="finalQuote">
-      <div class="estimate-card quote-card">
-        <span class="step-tag tag-good">Your EZ Quote</span>
-        <h2 id="finalGreeting">Here’s your verified quote</h2>
-        <div class="estimate-range" id="finalPrice">$0</div>
-        <p class="estimate-sub">installed</p>
-        <ul class="quote-scope" id="quoteScope"></ul>
-        <div class="quote-meta">
-          <p><strong>Installer:</strong> EZ Gutter Co. · Licensed &amp; insured · Lic #GC-000000</p>
-          <p><strong>Warranty:</strong> Lifetime workmanship · 20-year finish warranty</p>
-          <p><strong>Payment:</strong> $0 due today · Balance due on completed installation</p>
-          <p class="quote-conditions" id="quoteConditions"></p>
-        </div>
-        <button class="btn btn-primary btn-lg" id="acceptBtn">REVIEW &amp; ACCEPT QUOTE</button>
-        <p class="estimate-disclaimer">Final pricing confirmed after digital measurement and any required site verification.</p>
-      </div>
+      <button class="btn btn-primary btn-next" data-next>Continue with photos</button>
+      <button class="btn btn-ghost btn-skip" data-next>Skip — continue without photos</button>
     </section>
 
     <!-- Done -->
     <section class="step step-center" data-step="done">
       <div class="estimate-card">
         <div class="done-check">✓</div>
-        <h2>You’re all set!</h2>
-        <p class="estimate-sub">We’ve received your request. Your EZ Quote and next steps are on their way to your inbox.</p>
+        <h2>You’re a confirmed lead!</h2>
+        <p class="estimate-sub">Deposit received. Your job is now posted to our vetted local contractors — you’ll be notified the moment one accepts.</p>
+        <a class="btn btn-primary" id="trackJobLink" href="#">Track my job</a>
       </div>
     </section>
 
@@ -338,9 +331,12 @@
 
 <footer class="footer">
   <p>© 2026 EZ Gutter Co. · Licensed &amp; insured · Estimates are preliminary until verified by digital measurement.</p>
+  <p><a class="footer-link" href="portal.html">Contractor &amp; team portal</a></p>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="store.js"></script>
+<script src="payments.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

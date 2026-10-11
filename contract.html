@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Installation Agreement — EZ Gutter Quote</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="contract-body">
+
+<main class="contract" id="contractView">
+  <p>Loading contract…</p>
+</main>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+
+/* Contract proof-of-concept: merged fields from job/contractor/contact.
+   Replace the inner template with the legal-reviewed version when available. */
+
+const $ = (s, r = document) => r.querySelector(s);
+const fmt = (n) => "$" + Number(n).toLocaleString("en-US");
+const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "____________");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const params = new URLSearchParams(location.search);
+const job = Store.job(params.get("job"));
+const viewerEmail = (params.get("email") || "").toLowerCase();
+
+function render() {
+  const el = $("#contractView");
+  if (!job || !job.contractorId) {
+    el.innerHTML = "<h1>Contract unavailable</h1><p>This job has not been accepted by a contractor yet.</p>";
+    return;
+  }
+  const ctr = Store.contractor(job.contractorId);
+  const contact = Store.contact(job.contactId);
+  const d = job.details;
+  const customerCanSign = viewerEmail && contact.email.toLowerCase() === viewerEmail && !job.contractSignedAt;
+
+  el.innerHTML = `
+    <header class="contract-head">
+      <h1>Gutter Installation Agreement</h1>
+      <p class="contract-poc">PROOF OF CONCEPT — template pending legal review. Not a binding instrument.</p>
+    </header>
+
+    <p>This Agreement is made on <strong>${fmtDate(job.acceptedAt)}</strong> between:</p>
+    <table class="contract-parties">
+      <tr><th>Homeowner ("Customer")</th><th>Installer ("Contractor")</th></tr>
+      <tr>
+        <td>${esc(contact.firstname)} ${esc(contact.lastname)}<br/>${esc(job.address.street)}<br/>${esc(job.address.city)}, ${esc(job.address.state)} ${esc(job.address.zip)}<br/>${esc(contact.email)} · ${esc(contact.phone)}</td>
+        <td>${esc(ctr.company)}<br/>Attn: ${esc(ctr.contactName)}<br/>${ctr.licensed ? `License: ${esc(ctr.licenseNumber)}` : "Unlicensed (job under regional threshold)"}<br/>${esc(ctr.email)} · ${esc(ctr.phone)}</td>
+      </tr>
+    </table>
+    <p>Facilitated by <strong>EZ Gutter Co.</strong> ("Platform"), which collects payment and remits the Contractor's share.</p>
+
+    <h2>1. Scope of work</h2>
+    <ul>
+      <li>Project type: ${esc(d.projectType)}</li>
+      <li>Gutter protection: ${esc(d.protection)}</li>
+      <li>Approx. gutter run: ${job.gutterFeet ? job.gutterFeet + " linear ft (customer-confirmed satellite trace, verified on site)" : "to be measured on site"}</li>
+      <li>Building height: ${esc(d.height)}</li>
+      <li>Downspouts: ${esc(d.downspouts)}${d.underground === "yes" ? ` · underground drains: reconnect ${esc(d.reconnect)}` : ""}</li>
+      <li>Special conditions disclosed: ${(d.special || []).join(", ") || "none"}</li>
+    </ul>
+
+    <h2>2. Price and payment</h2>
+    <ul>
+      <li>Contract price: <strong>${fmt(job.amount)}</strong> (subject to verified on-site measurement)</li>
+      <li>Deposit paid to Platform: ${fmt(job.depositAmount)} (credited to Customer)</li>
+      <li>Balance due on completion via Platform payment link; Platform remits Contractor share less the ${job.commissionPct}% platform fee.</li>
+    </ul>
+
+    <h2>3. Schedule</h2>
+    <p>Work to be completed between <strong>${fmtDate(job.timeframe.start)}</strong> and <strong>${fmtDate(job.timeframe.end)}</strong>, exact date confirmed via on-platform messaging.</p>
+
+    <h2>4. Terms</h2>
+    <p class="contract-boiler">[Legal-reviewed terms to be inserted: workmanship warranty, materials, cancellation rights, change orders, dispute resolution, insurance, licensing disclosures, right-to-cure, and state-specific notices.]</p>
+
+    <div class="signatures">
+      <div class="sig-block">
+        <p class="sig-line">${job.contractorSignature ? `<em>${esc(job.contractorSignature)}</em>` : ""}</p>
+        <p>Contractor — ${esc(ctr.company)}<br/><span class="sig-date">${fmtDate(job.acceptedAt)}</span></p>
+      </div>
+      <div class="sig-block">
+        <p class="sig-line">${job.contractSignedAt ? `<em>${esc(job.contractSignature)}</em>` : ""}</p>
+        <p>Customer — ${esc(contact.firstname)} ${esc(contact.lastname)}<br/><span class="sig-date">${job.contractSignedAt ? fmtDate(job.contractSignedAt) : "not yet signed"}</span></p>
+      </div>
+    </div>
+
+    ${customerCanSign ? `
+      <div class="sign-box no-print">
+        <label class="field">Type your full legal name to sign
+          <input type="text" id="sigInput" placeholder="${esc(contact.firstname)} ${esc(contact.lastname)}" />
+        </label>
+        <button class="btn btn-primary" id="signBtn">Sign agreement</button>
+      </div>` : ""}
+
+    <div class="no-print contract-actions">
+      <button class="btn btn-ghost" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+  `;
+
+  const signBtn = $("#signBtn");
+  if (signBtn) signBtn.addEventListener("click", () => {
+    const name = $("#sigInput").value.trim();
+    if (name.length < 3) return;
+    Store.updateJob(job.id, {
+      contractSignedAt: new Date().toISOString(),
+      contractSignature: name,
+      dealstage: "contracted",
+    }, viewerEmail, "contract.sign");
+    location.reload();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

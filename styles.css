@@ -572,6 +572,214 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* ============ Deposit box ============ */
+.deposit-box {
+  border-top: 1px solid var(--border);
+  margin-top: 1.25rem;
+  padding-top: 1.5rem;
+}
+.deposit-box p:first-child { color: var(--text-dim); margin-bottom: 1rem; }
+
+/* ============ Payment modal ============ */
+.pay-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(2, 6, 23, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.pay-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.pay-head { display: flex; justify-content: space-between; align-items: center; }
+.pay-brand { font-weight: 800; }
+.pay-test-badge {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+  color: #fbbf24; border: 1px solid #fbbf24; border-radius: 6px; padding: 0.15rem 0.5rem;
+}
+.pay-desc { color: var(--text-dim); font-size: 0.9rem; }
+.pay-lines { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.88rem; color: var(--text-dim); }
+.pay-lines li { display: flex; justify-content: space-between; }
+.pay-total { display: flex; justify-content: space-between; font-weight: 700; border-top: 1px solid var(--border); padding-top: 0.6rem; }
+.pay-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-dim); flex: 1; }
+.pay-field input {
+  font: inherit; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.9rem;
+}
+.pay-field input:focus { outline: none; border-color: var(--accent); }
+.pay-row { display: flex; gap: 0.75rem; }
+.pay-hint { font-size: 0.78rem; color: var(--text-dim); }
+.pay-error { color: #f87171; font-size: 0.85rem; }
+
+/* ============ Portal ============ */
+.portal-body { min-height: 100vh; display: flex; flex-direction: column; }
+.portal-body .nav { border-bottom: 1px solid var(--border); }
+.nav .logo { text-decoration: none; color: var(--text); }
+.nav-right { display: flex; align-items: center; gap: 0.9rem; }
+.whoami { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+.portal-login { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; }
+.login-card { max-width: 440px; width: 100%; }
+.login-card .btn { margin-top: 0.5rem; }
+
+.demo-hint {
+  margin-top: 1.5rem; font-size: 0.8rem; color: var(--text-dim);
+  background: var(--surface-2); border-radius: 12px; padding: 0.9rem 1.1rem;
+}
+.demo-hint ul { margin: 0.4rem 0 0 1.1rem; }
+
+.portal { flex: 1; width: 100%; max-width: 980px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+.portal h2 { margin: 1.5rem 0 0.75rem; }
+.portal h3 { margin: 1.75rem 0 0.6rem; font-size: 1.05rem; }
+
+.tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+.tab {
+  font: inherit; font-weight: 600; font-size: 0.9rem;
+  background: transparent; color: var(--text-dim);
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 0.5rem 1.1rem; cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: rgba(56, 189, 248, 0.12); color: var(--accent); border-color: rgba(56, 189, 248, 0.3); }
+
+.job-cards { display: flex; flex-direction: column; gap: 1rem; }
+.job-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem;
+}
+.job-card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.job-card h3 { margin: 0; font-size: 1.05rem; }
+.job-locked { opacity: 0.75; }
+.locked-note { color: #fbbf24; font-size: 0.88rem; margin-top: 0.75rem; }
+.job-payout { margin: 0.5rem 0; }
+.job-payout strong { color: var(--good); font-size: 1.15rem; }
+.job-payout-sub { color: var(--text-dim); font-size: 0.82rem; }
+.job-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+
+.job-dl {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem;
+  font-size: 0.85rem; margin: 0.75rem 0; 
+}
+.job-dl dt { color: var(--text-dim); font-weight: 600; }
+.job-dl dd { margin: 0; }
+
+.badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 700;
+  border-radius: 999px; padding: 0.25rem 0.7rem;
+  background: rgba(148, 163, 184, 0.12); color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.badge-good { background: rgba(52, 211, 153, 0.12); color: var(--good); border-color: rgba(52, 211, 153, 0.3); }
+.badge-warn { background: rgba(251, 191, 36, 0.1); color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
+.data-table th, .data-table td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); }
+.data-table th { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.detail-cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inline-input {
+  font: inherit; width: 110px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.4rem 0.6rem;
+}
+
+.rate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
+.upload-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.upload-row select {
+  font: inherit; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.8rem;
+}
+.save-ok { color: var(--good); font-weight: 600; margin-left: 0.6rem; }
+.empty-note { color: var(--text-dim); padding: 1.25rem 0; }
+.footer-link { color: var(--text-dim); }
+
+/* ============ Chat ============ */
+.chat-holder { margin-top: 0.75rem; }
+.thread-block { margin-bottom: 1.5rem; }
+.thread-block h4 { margin-bottom: 0.4rem; }
+.chat-log {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 0.9rem; max-height: 280px; overflow-y: auto;
+}
+.chat-msg {
+  max-width: 85%; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px; padding: 0.55rem 0.8rem;
+  font-size: 0.9rem; align-self: flex-start;
+}
+.chat-msg.mine { align-self: flex-end; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3); }
+.chat-meta { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.2rem; }
+.chat-compose { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.chat-compose input {
+  flex: 1; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.6rem 1rem;
+}
+.chat-compose input:focus { outline: none; border-color: var(--accent); }
+
+/* ============ Customer job page ============ */
+.status-steps { list-style: none; display: flex; flex-direction: column; gap: 0.9rem; margin: 1.5rem 0; }
+.status-steps li { display: flex; gap: 0.9rem; align-items: flex-start; opacity: 0.45; }
+.status-steps li.done { opacity: 1; }
+.status-steps p { color: var(--text-dim); font-size: 0.85rem; }
+.status-dot {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.status-steps li.done .status-dot { background: rgba(52, 211, 153, 0.15); border-color: var(--good); color: var(--good); }
+.job-detail-card { text-align: left; margin: 1rem 0 2rem; }
+.job-detail-card .estimate-range { font-size: 2rem; }
+.job-detail-card .btn { margin-top: 0.75rem; }
+
+/* ============ Contract ============ */
+.contract-body { background: #fff; color: #111827; font-family: "Inter", Georgia, serif; }
+.contract { max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 4rem; line-height: 1.65; }
+.contract-head h1 { font-size: 1.7rem; margin-bottom: 0.5rem; }
+.contract-poc {
+  display: inline-block; font-size: 0.75rem; font-weight: 700;
+  color: #b45309; border: 1.5px dashed #b45309; border-radius: 8px;
+  padding: 0.3rem 0.7rem; margin-bottom: 1.25rem;
+}
+.contract h2 { font-size: 1.1rem; margin: 1.75rem 0 0.5rem; }
+.contract ul { margin-left: 1.3rem; }
+.contract-parties { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.contract-parties th, .contract-parties td {
+  border: 1px solid #d1d5db; padding: 0.7rem 0.9rem; text-align: left;
+  vertical-align: top; font-size: 0.92rem;
+}
+.contract-boiler { color: #6b7280; font-style: italic; }
+.signatures { display: flex; gap: 2rem; margin-top: 3rem; flex-wrap: wrap; }
+.sig-block { flex: 1; min-width: 220px; }
+.sig-line {
+  border-bottom: 1.5px solid #111827; min-height: 2.2rem;
+  font-family: "Segoe Script", cursive; font-size: 1.3rem; padding: 0.2rem 0.4rem;
+}
+.sig-date { color: #6b7280; font-size: 0.82rem; }
+.sign-box {
+  margin-top: 2rem; padding: 1.25rem; border: 1px solid #d1d5db; border-radius: 12px;
+  display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;
+}
+.sign-box .field { flex: 1; min-width: 240px; margin: 0; }
+.sign-box input { background: #fff; color: #111827; border-color: #d1d5db; }
+.contract-actions { margin-top: 2rem; }
+.contract .btn-primary { box-shadow: none; }
+
+@media print {
+  .no-print { display: none !important; }
+  .contract { padding: 0; }
+}
+
 /* ============ Responsive ============ */
 @media (max-width: 520px) {
   .field-row { flex-wrap: wrap; }
