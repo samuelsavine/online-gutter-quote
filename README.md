@@ -77,6 +77,11 @@ After the address step, the home is located and its outline is pre-drawn on sate
 - Live Stripe (current checkout is a test-mode simulation) and live HubSpot sync (schema + exports are ready).
 - Address autocomplete.
 
+## Future implementation plan
+- **Mapillary street-level imagery** (free, Meta) — show the nearest street-level capture of the home next to the satellite trace via [MapillaryJS](https://mapillary.github.io/mapillary-js/) and the free Graph API. Coverage is crowdsourced: strong on main roads, spotty on residential cul-de-sacs, so treat as progressive enhancement ("street imagery available for this address"). Licensing (CC-BY-SA display with attribution) permits our use; unlike Google Street View there is no prohibition on showing it beside our non-Google map.
+- **Photogrammetry from customer photos/video** — COLMAP sparse (CPU) + scale alignment to the satellite trace; client-side video frame extraction (WebCodecs), blur rejection, and downscaling before upload. GPU worker optional for dense reconstruction. See the investigation notes in the repo history.
+- **Paid imagery upgrade path** — Nearmap API (5.5–7.5 cm, 2–3×/yr refresh, measurement rights included) when trace-accuracy or lead volume justifies the subscription.
+
 ## Running locally
 
 Static site, no build step:
