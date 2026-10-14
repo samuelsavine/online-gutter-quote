@@ -351,9 +351,13 @@ async function geocodeAddress() {
   throw new Error("address not found");
 }
 
-// FEMA USA Structures (US government dataset, hosted on Esri ArcGIS)
-const FOOTPRINT_URL =
-  "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0/query";
+// Footprint sources, newest-coverage-first fallback:
+// FEMA USA Structures (US gov, comprehensive but vintage ~2018-2021), then
+// Esri-hosted OpenStreetMap buildings (live-updated, catches new construction)
+const FOOTPRINT_SOURCES = [
+  "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0/query",
+  "https://services6.arcgis.com/Do88DoK2xjTUCXd1/arcgis/rest/services/OSM_NA_Buildings/FeatureServer/0/query",
+];
 
 async function fetchFootprint(lat, lng, radiusMeters) {
   const params = new URLSearchParams({
@@ -367,10 +371,16 @@ async function fetchFootprint(lat, lng, radiusMeters) {
     outFields: "OBJECTID",
     returnGeometry: "true",
   });
-  const res = await fetch(`${FOOTPRINT_URL}?${params}`);
-  if (!res.ok) throw new Error("footprint query failed");
-  const data = await res.json();
-  const polys = (data.features || []).filter((f) => f.geometry?.type === "Polygon");
+  let polys = [];
+  for (const source of FOOTPRINT_SOURCES) {
+    try {
+      const res = await fetch(`${source}?${params}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      polys = (data.features || []).filter((f) => f.geometry?.type === "Polygon");
+      if (polys.length) break;
+    } catch { /* try next source */ }
+  }
   if (!polys.length) return null;
   // Nearest building by centroid distance
   let best = null, bestDist = Infinity;
