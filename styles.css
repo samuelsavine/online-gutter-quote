@@ -458,6 +458,9 @@ body {
 /* ============ Trace map ============ */
 .map-wrap {
   position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(920px, calc(100vw - 3rem));
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -465,7 +468,7 @@ body {
 }
 
 #traceMap {
-  height: 380px;
+  height: clamp(420px, 62vh, 680px);
   width: 100%;
   background: var(--surface-2);
 }
@@ -505,6 +508,8 @@ body {
   box-shadow: 0 2px 6px rgba(2, 6, 23, 0.6);
   cursor: grab;
 }
+
+.vertex-dim { border-color: var(--accent-2); opacity: 0.8; }
 
 .map-controls {
   display: flex;

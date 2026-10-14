@@ -159,7 +159,7 @@ function validateStep(id) {
       return ok;
     }
     case "measure": {
-      state.gutterFeet = trace.points.length >= 3 ? Math.round(tracePerimeterFeet()) : null;
+      state.gutterFeet = hasClosedPoly() ? Math.round(tracePerimeterFeet()) : null;
       return true;
     }
     case "problems":
@@ -273,7 +273,7 @@ $$(".options").forEach((group) => {
 /* ========================================================================
    Gutter trace — satellite map + auto footprint + editable outline
    ======================================================================== */
-const trace = { map: null, points: [], polygon: null, markers: [], geocoded: null };
+const trace = { map: null, polys: [[]], active: 0, shapes: [], markers: [], geocoded: null };
 
 const FT_PER_M = 3.28084;
 
@@ -286,15 +286,20 @@ function haversineMeters(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-function tracePerimeterFeet() {
-  const pts = trace.points;
-  if (pts.length < 2) return 0;
+function polyPerimeterMeters(pts) {
+  if (pts.length < 3) return 0;
   let m = 0;
   for (let i = 0; i < pts.length; i++) {
     m += haversineMeters(pts[i], pts[(i + 1) % pts.length]);
   }
-  return m * FT_PER_M;
+  return m;
 }
+
+function tracePerimeterFeet() {
+  return trace.polys.reduce((sum, pts) => sum + polyPerimeterMeters(pts), 0) * FT_PER_M;
+}
+
+const hasClosedPoly = () => trace.polys.some((p) => p.length >= 3);
 
 function setMapStatus(text) {
   const el = $("#mapStatus");
@@ -386,42 +391,67 @@ async function fetchFootprint(lat, lng, radiusMeters) {
 function updateTraceUI() {
   const ft = Math.round(tracePerimeterFeet());
   const badge = $("#footageBadge");
-  badge.classList.toggle("hidden", trace.points.length < 3);
+  badge.classList.toggle("hidden", !hasClosedPoly());
   $("#footageValue").textContent = ft.toLocaleString("en-US");
   redrawTrace();
 }
 
 function redrawTrace() {
   const { map } = trace;
-  if (trace.polygon) { trace.polygon.remove(); trace.polygon = null; }
+  trace.shapes.forEach((s) => s.remove());
+  trace.shapes = [];
   trace.markers.forEach((m) => m.remove());
   trace.markers = [];
   if (!map) return;
 
-  if (trace.points.length >= 2) {
-    trace.polygon = L.polygon(trace.points, {
-      color: "#38bdf8", weight: 3, fillColor: "#38bdf8", fillOpacity: 0.12,
-    }).addTo(map);
-  }
+  trace.polys.forEach((pts, pi) => {
+    const isActive = pi === trace.active;
+    if (pts.length >= 2) {
+      const shape = L.polygon(pts, {
+        color: isActive ? "#38bdf8" : "#818cf8",
+        weight: 3,
+        fillColor: isActive ? "#38bdf8" : "#818cf8",
+        fillOpacity: 0.12,
+      }).addTo(map);
+      shape.on("click", () => {
+        trace.active = pi;
+        redrawTrace();
+      });
+      trace.shapes.push(shape);
+    }
 
-  trace.points.forEach((pt, i) => {
-    const marker = L.marker(pt, {
-      draggable: true,
-      icon: L.divIcon({ className: "vertex-handle", iconSize: [14, 14] }),
-    }).addTo(map);
-    marker.on("drag", (e) => {
-      trace.points[i] = e.target.getLatLng();
-      if (trace.polygon) trace.polygon.setLatLngs(trace.points);
-      const ft = Math.round(tracePerimeterFeet());
-      $("#footageValue").textContent = ft.toLocaleString("en-US");
+    pts.forEach((pt, i) => {
+      const marker = L.marker(pt, {
+        draggable: true,
+        icon: L.divIcon({ className: `vertex-handle${isActive ? "" : " vertex-dim"}`, iconSize: [14, 14] }),
+      }).addTo(map);
+      marker.on("drag", (e) => {
+        pts[i] = e.target.getLatLng();
+        redrawShapeOnly(pi);
+        $("#footageValue").textContent = Math.round(tracePerimeterFeet()).toLocaleString("en-US");
+      });
+      marker.on("dragend", updateTraceUI);
+      marker.on("dblclick", () => {
+        pts.splice(i, 1);
+        updateTraceUI();
+      });
+      trace.markers.push(marker);
     });
-    marker.on("dragend", updateTraceUI);
-    marker.on("dblclick", () => {
-      trace.points.splice(i, 1);
-      updateTraceUI();
-    });
-    trace.markers.push(marker);
   });
+}
+
+// Lightweight shape refresh during vertex drags
+function redrawShapeOnly(polyIdx) {
+  let shapeIdx = -1;
+  for (let pi = 0, si = 0; pi < trace.polys.length; pi++) {
+    if (trace.polys[pi].length >= 2) {
+      if (pi === polyIdx) { shapeIdx = si; break; }
+      si++;
+    }
+  }
+  if (shapeIdx >= 0 && trace.shapes[shapeIdx]) {
+    trace.shapes[shapeIdx].setLatLngs(trace.polys[polyIdx]);
+  }
 }
 
 async function initMeasureStep() {
@@ -434,7 +464,7 @@ async function initMeasureStep() {
       { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }
     ).addTo(trace.map);
     trace.map.on("click", (e) => {
-      trace.points.push(e.latlng);
+      trace.polys[trace.active].push(e.latlng);
       updateTraceUI();
     });
   }
@@ -444,7 +474,8 @@ async function initMeasureStep() {
   const addrKey = JSON.stringify(state.address);
   if (trace.geocoded === addrKey) return; // same address, keep existing trace
   trace.geocoded = addrKey;
-  trace.points = [];
+  trace.polys = [[]];
+  trace.active = 0;
   updateTraceUI();
 
   setMapStatus("Locating your home…");
@@ -466,10 +497,11 @@ async function initMeasureStep() {
     const radius = loc.rooftop ? 40 : 100;
     const footprint = await fetchFootprint(loc.lat, loc.lng, radius).catch(() => null);
     if (footprint) {
-      trace.points = footprint;
+      trace.polys = [footprint];
+      trace.active = 0;
       trace.map.fitBounds(L.latLngBounds(footprint).pad(0.4));
       $("#measureHint").textContent =
-        "We found your home’s outline. Drag the corner handles to match where gutters go, click the map to add corners, double-click a handle to remove it.";
+        "We found your home’s outline. Drag the corner handles to match where gutters go, click the map to add corners, double-click a handle to remove it. Use “Add section” for garages or other structures.";
     } else {
       $("#measureHint").textContent =
         "We couldn’t auto-detect your home’s outline. Click the corners of your roofline on the map to trace where gutters go.";
@@ -485,12 +517,28 @@ async function initMeasureStep() {
 }
 
 $("#undoPointBtn").addEventListener("click", () => {
-  trace.points.pop();
+  const pts = trace.polys[trace.active];
+  if (pts.length) {
+    pts.pop();
+  } else if (trace.polys.length > 1) {
+    trace.polys.splice(trace.active, 1);
+    trace.active = trace.polys.length - 1;
+  }
+  updateTraceUI();
+});
+
+$("#addSectionBtn").addEventListener("click", () => {
+  if (trace.polys[trace.active].length > 0 && trace.polys[trace.active].length < 3) return;
+  trace.polys.push([]);
+  trace.active = trace.polys.length - 1;
+  $("#measureHint").textContent =
+    "New section started — click the corners of the garage, shed, or other structure on the map.";
   updateTraceUI();
 });
 
 $("#clearTraceBtn").addEventListener("click", () => {
-  trace.points = [];
+  trace.polys = [[]];
+  trace.active = 0;
   updateTraceUI();
 });
 
@@ -672,7 +720,8 @@ $("#depositBtn").addEventListener("click", handleDeposit);
 
 $("#skipMeasureBtn").addEventListener("click", () => {
   state.traceSkipped = true;
-  trace.points = [];
+  trace.polys = [[]];
+  trace.active = 0;
   updateTraceUI();
   goNext();
 });
