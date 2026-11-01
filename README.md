@@ -1,86 +1,80 @@
-# EZ Gutter Quote — Online Gutter Quote Mockup
+# FastFreePricing — Home Improvement Pricing Prototype
 
 **Live demo:** https://samuelsavine.github.io/online-gutter-quote/
 
-**Team portal (demo roles):** https://samuelsavine.github.io/online-gutter-quote/portal.html
+**Business & team portal:** https://samuelsavine.github.io/online-gutter-quote/portal.html
 
-A customer-facing questionnaire (MVP v1.0) that produces a preliminary gutter installation estimate online — no tape measure, no ladder, no in-home sales presentation — plus a prototype contractor marketplace behind it.
+Homeowners get a **free price estimate** for one or more home-improvement projects based on national/regional average pricing, then can buy an **expert Advanced Report** by uploading photos of each project area. Service businesses get a profile (pre-built from license records or self-created) and can upgrade to **Associate** to access leads.
 
 ### Demo accounts (no passwords)
 
 | Email | Role |
 |---|---|
-| admin@ezgutter.com | Admin — settings, contractor verification, compliance exports |
-| sales@ezgutter.com | Sales associate — jobs + message center |
-| maria@capefeargutters.com | Licensed contractor (all job sizes) |
-| deshawn@coastalrain.com | Unlicensed contractor (capped at regional threshold) |
+| admin@fastfreepricing.com | Admin — submissions, report queue, businesses + CSV import, price book, settings, compliance |
+| sales@fastfreepricing.com | Sales — submissions, businesses |
+| expert@fastfreepricing.com | Expert — Advanced Report queue and editor |
+| maria@capefearexteriors.com | Associate business — lead board + lead unlocks |
+| deshawn@coastalrain.com | Level 1 business — profile only, lead-count teaser |
 
-Prototype data lives in your browser's localStorage — each visitor gets their own sandbox. To reset the demo, clear site data (or run `localStorage.removeItem("ezgq.db.v1")` in the console).
+Unclaimed imported listings (e.g. search “Seaside” or `NC-PL-30441`) can be claimed from the portal sign-in screen.
 
-## What's implemented
+Prototype data lives in your browser's localStorage — each visitor gets their own sandbox. Reset it from **Admin → Settings**.
 
-### Landing page
-- Modern dark-themed hero with CTA that reveals the questionnaire.
+## Homeowner flow
 
-### Progressive questionnaire
-- One question per screen with slide animations and auto-advance on single-choice answers.
-- Progress bar with step counter and a back button that respects answer history.
-- Inline validation for address, ZIP, email, and phone.
+1. **Choose services** — any of the 19 services in [home_improvement_questionnaire.txt](home_improvement_questionnaire.txt); multiple per request.
+2. **Universal questions** (G1–G7) asked once: address, property type, ownership, timeline, objective, priority, access restrictions.
+3. **Per-service questions** (10 each + optional free text), one per screen. “Not sure” is always allowed and widens the range instead of forcing false precision.
+4. **Satellite measurement** offered where size drives price: gutters (perimeter), roofing (roof area × pitch), siding (wall area), fences (line length), decks and concrete (area).
+5. Optional photos (G8), delivery preference (G9), contact details + consent (G10).
+6. **Free estimate** per project plus a combined range, with a non-binding disclaimer. Adjacent services are cross-sold only after the estimate (“Add Roofing” appends a project to the same request).
+7. **Advanced Report** upsell: required photo slots per project (2 required each), optional notes, then checkout (**payment placeholder**). The homeowner tracks status and reads the published report at `report.html`.
 
-### Conditional logic
-- "Existing gutter problems" shown only for replacement projects.
-- Underground drainage reveals a reconnect follow-up only on "Yes".
-- "None of these / Not sure" chips are mutually exclusive with other selections.
-- Every lead is prompted (optionally) to upload house/gutter photos for a faster, more accurate quote.
+## Business & team portal ([portal.html](portal.html))
 
-### Satellite gutter measurement (all free, US-based services)
-After the address step, the home is located and its outline is pre-drawn on satellite imagery for the user to confirm or adjust:
+- **Level 1 businesses** — profile with services offered and states served. Created by self sign-up, or pre-built from a license-record CSV import and later claimed.
+- **Associates** (membership, **payment placeholder**) — lead board filtered to their services and states; each lead shows city/ZIP, timeline, and estimate range. Contact details, full answers, and photos unlock per lead (**payment placeholder**). Only homeowners who opted in to sharing appear as leads.
+- **Experts** — queue of purchased Advanced Reports: review answers and photos, set per-project ranges, add line items and notes, save drafts, publish to the homeowner.
+- **Admins** — all of the above plus CSV import (license number/type → services mapping, duplicate skipping), business verification, **price book** (per-service unit prices and per-state multipliers), pricing settings (report, membership, lead unlock), and compliance exports.
 
-| Function | Service | Provider |
-|---|---|---|
-| Geocoding | [Census Bureau geocoder](https://geocoding.geo.census.gov/) | US government |
-| Building footprints | [FEMA USA Structures](https://gii.dhs.gov/usa-structures) | US government (hosted on Esri ArcGIS) |
-| Satellite imagery | Esri World Imagery | Esri (Redlands, CA) |
-| Map/editing UI | [Leaflet](https://leafletjs.com/) | Open source, no server calls |
+## Pricing engine
 
-- Auto-fetched footprint rendered as an editable polygon: drag corner handles, click to add corners, double-click to remove.
-- Live linear-footage readout (haversine perimeter), feeding per-foot pricing.
-- Manual tracing fallback when no footprint is found; skippable entirely (falls back to flat baseline pricing).
-- Verified coverage in the Wilmington, NC pilot region.
+Each service has a pricing model in [catalog.js](catalog.js): base unit range (per linear ft / sq ft / unit / job), answer-based multipliers and add-ons, a minimum job size, a regional multiplier by state, and adjustments from universal answers (e.g. historic property, premium priority).
 
-### Pricing & quote screens
-- Preliminary estimate range (explicitly non-binding), footage-based when a trace was confirmed.
-- "Show me pricing both ways" renders gutters-only and with-guards ranges.
-- Contact details and an installation timeframe (calendar range with presets) are required **before** the estimate is shown.
-- Optional photo upload step for a faster, more accurate quote.
+> ⚠ **All price values are placeholders.** They're admin-editable in the price book and must be replaced with vetted data before launch.
 
-### Marketplace prototype (simulated backend — localStorage, swappable for a real API)
-- **Qualified-lead deposit:** simulated Stripe test-mode checkout (card 4242…) collects an admin-configurable deposit that posts the job and is credited to the final price.
-- **Contractor & team portal** ([portal.html](portal.html)): demo sign-in (admin, sales, licensed + unlicensed contractors — emails listed on the login screen).
-  - Job board shows payout net of the platform commission plus full job details; unlicensed contractors are locked out of jobs above the per-region license threshold (admin-editable).
-  - Accept a job → auto-notifies the customer, generates the contract, offers an .ics calendar download.
-  - Contractor profile: rate structure ($/ft + modifiers) and credential uploads (license, workers' comp, insurance, W-9) with admin verification.
-  - Admin: all jobs, contractor/doc verification, platform settings (deposit, commission, regional thresholds), compliance tab.
-- **Contract proof-of-concept** ([contract.html](contract.html)): merged job/contractor/customer fields, typed signatures, print-to-PDF. Placeholder terms pending legal review.
-- **Customer job tracker** ([job.html](job.html)): status timeline, contract signing, final payment with automatic platform/contractor split, and on-platform messaging with the contractor.
-- **Messaging:** customer↔contractor (after acceptance) and contractor↔admin threads, all stored on-platform.
-- **Compliance:** every contact, job, message, payment, settings change, and signature is written to an audit log with actor + timestamp; exportable as CSV/JSON.
-- **CRM-ready data:** contacts and jobs are shaped to map 1:1 onto HubSpot contacts/deals; one-click HubSpot-importable CSV exports.
+Pricing-data research: no free API provides consumer-facing remodeling prices. Cost vs Value (Zonda/JLC) is copyrighted, has no API, and covers ~20 fixed-scope projects; RSMeans (from $396/yr) has unit costs and location factors for 970 locations but needs an enterprise license to show derived prices publicly; Angi/HomeAdvisor/Homewyse prohibit scraping. The price book is structured so licensed data can be loaded into it later.
 
-### Compliance details
-- Marketing consent is separate, optional, and never prechecked; operational quote communications are explained separately.
-- Algorithmic estimates are never presented as guaranteed prices before verification.
+## Data model (CRM-ready)
+
+- `submissions` — contact, address, universal answers, `projects[]` (service, answers, estimate), optional `advanced` (photos, payment reference, expert report). Exports as HubSpot contacts plus one deal per project.
+- `businesses` — profile, license, services, states served, tier, unlocked leads, source (`seed` / `import` / `self`), claimed/verified flags.
+- `audit` — every submission, purchase, report publish, lead unlock, import, claim, and settings change, with actor and timestamp.
+
+All data access goes through [store.js](store.js), so moving to a cloud database replaces only that file's read/write internals.
+
+## Satellite measurement stack (free, US-based)
+
+| Function | Service |
+|---|---|
+| Geocoding | Esri World Geocoder → US Census geocoder fallback |
+| Building footprints | FEMA USA Structures → Esri-hosted OpenStreetMap buildings fallback |
+| Imagery | Esri World Imagery |
+| Map UI | Leaflet |
 
 ## Not yet implemented
-- Automated measurement from uploaded photos (upload UI is a stub; no model runs). Researched options: Hover API for production-grade photo→measurement, or a scale cross-check against the satellite trace. Single photos carry no absolute scale, so a free pipeline requires a reference dimension or a GPU photogrammetry backend.
-- Real backend: all marketplace data lives in the browser's localStorage (per-device, resettable). The data layer ([store.js](store.js)), payments adapter ([payments.js](payments.js)), and session handling are isolated so a real API/auth/Stripe Connect swap replaces internals, not app code.
-- Live Stripe (current checkout is a test-mode simulation) and live HubSpot sync (schema + exports are ready).
-- Address autocomplete.
+
+- Cloud database, real authentication, and business ownership verification for claims.
+- Payment processing: Advanced Report, Associate membership, and lead unlocks all use [payments.js](payments.js) placeholders (planned: Stripe Checkout one-time and subscription).
+- Notifications (email/text) for estimate delivery and report publication.
+- Full-resolution photo storage (prototype keeps small thumbnails in localStorage).
+- Licensed pricing data.
 
 ## Future implementation plan
-- **Mapillary street-level imagery** (free, Meta) — show the nearest street-level capture of the home next to the satellite trace via [MapillaryJS](https://mapillary.github.io/mapillary-js/) and the free Graph API. Coverage is crowdsourced: strong on main roads, spotty on residential cul-de-sacs, so treat as progressive enhancement ("street imagery available for this address"). Licensing (CC-BY-SA display with attribution) permits our use; unlike Google Street View there is no prohibition on showing it beside our non-Google map.
-- **Photogrammetry from customer photos/video** — COLMAP sparse (CPU) + scale alignment to the satellite trace; client-side video frame extraction (WebCodecs), blur rejection, and downscaling before upload. GPU worker optional for dense reconstruction. See the investigation notes in the repo history.
-- **Paid imagery upgrade path** — Nearmap API (5.5–7.5 cm, 2–3×/yr refresh, measurement rights included) when trace-accuracy or lead volume justifies the subscription.
+
+- **Mapillary street-level imagery** — free, crowdsourced street-level views beside the satellite map (progressive enhancement; coverage varies).
+- **Photogrammetry** — COLMAP from homeowner photos/video, scaled to the satellite trace, to help experts measure.
+- **Paid imagery** — Nearmap (5.5–7.5 cm, measurement rights included) when volume justifies it.
 
 ## Running locally
 
@@ -90,4 +84,4 @@ Static site, no build step:
 git clone https://github.com/samuelsavine/online-gutter-quote.git
 ```
 
-Open `index.html` in a browser (the portal is `portal.html`). Payments use the simulated test card `4242 4242 4242 4242`.
+Open `index.html` in a browser (the portal is `portal.html`).

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Estimate — FastFreePricing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="portal-body">
+
+<nav class="nav">
+  <a class="logo" href="index.html"><span class="logo-mark">FFP</span> FastFreePricing</a>
+</nav>
+
+<main class="portal" id="reportView"><p class="empty-note">Loading…</p></main>
+
+<footer class="footer"><p>© 2026 FastFreePricing · Estimates and reports are not binding quotes; final pricing is set by the contractor you hire.</p></footer>
+
+<script src="catalog.js"></script>
+<script src="store.js"></script>
+<script src="payments.js"></script>
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const params = new URLSearchParams(location.search);
+const sub = Store.submission(params.get("id"));
+const email = (params.get("email") || "").toLowerCase();
+
+const STATUS = {
+  quoted: "Free estimate delivered",
+  report_purchased: "Advanced Report purchased — awaiting expert review",
+  report_in_progress: "An expert is preparing your report",
+  report_delivered: "Advanced Report ready",
+};
+
+function render() {
+  const el = $("#reportView");
+  if (!sub || sub.contact.email.toLowerCase() !== email) {
+    el.innerHTML = `<div class="estimate-card login-card"><h2>Estimate not found</h2>
+      <p class="step-hint">Check the link from your estimate confirmation.</p></div>`;
+    return;
+  }
+  const report = sub.advanced?.report;
+  el.innerHTML = `
+    <h2>Hi ${escHtml(sub.contact.firstName)} — your project pricing</h2>
+    <p class="step-hint">${escHtml(sub.address.street)}, ${escHtml(sub.address.city)}, ${escHtml(sub.address.state)} ${escHtml(sub.address.zip)}
+      · Requested ${fmtDate(sub.createdAt)}</p>
+    <p><span class="badge ${sub.status === "report_delivered" ? "badge-good" : ""}">${STATUS[sub.status]}</span></p>
+
+    ${report ? `
+      <div class="estimate-card report-card">
+        <span class="step-tag tag-good">Advanced Report</span>
+        <h3>Prepared by ${escHtml(report.expertName)} · ${fmtDate(report.publishedAt)}</h3>
+        ${report.summary ? `<p>${escHtml(report.summary)}</p>` : ""}
+        ${report.projects.map((rp) => {
+          const svc = SERVICES_BY_ID[rp.serviceId];
+          return `<div class="report-project">
+            <div class="quote-row"><strong>${svc.icon} ${escHtml(svc.name)}</strong>
+              <span class="quote-range">${fmtUsd(rp.low)}–${fmtUsd(rp.high)}</span></div>
+            ${rp.lineItems.length ? `<table class="data-table"><thead><tr><th>Item</th><th>Low</th><th>High</th></tr></thead>
+              <tbody>${rp.lineItems.map((li) => `<tr><td>${escHtml(li.label)}</td><td>${fmtUsd(li.low)}</td><td>${fmtUsd(li.high)}</td></tr>`).join("")}</tbody></table>` : ""}
+            ${rp.notes ? `<p class="step-hint">${escHtml(rp.notes)}</p>` : ""}
+          </div>`;
+        }).join("")}
+        <p class="estimate-disclaimer">Expert estimates are based on your photos and answers, not an on-site inspection.
+          Final pricing is set by the contractor you hire after verifying measurements and conditions.</p>
+        <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print / Save as PDF</button>
+      </div>` : ""}
+
+    <div class="estimate-card">
+      <span class="step-tag">Free estimate</span>
+      <div class="quote-list">${sub.projects.map((p) => {
+        const svc = SERVICES_BY_ID[p.serviceId];
+        return `<div class="quote-row"><strong>${svc.icon} ${escHtml(svc.name)}</strong>
+          <span class="quote-range">${fmtUsd(p.estimate.low)}–${fmtUsd(p.estimate.high)}</span></div>`;
+      }).join("")}</div>
+      <p class="estimate-disclaimer"><strong>Non-binding preliminary estimate based on regional averages.</strong></p>
+      ${!sub.advanced ? `<a class="btn btn-primary" href="index.html?advanced=${encodeURIComponent(sub.id)}&email=${encodeURIComponent(email)}">
+        Get an expert Advanced Report — ${fmtUsd(Store.settings().advancedReportPrice)}</a>` : ""}
+    </div>`;
+}
+
+render();
+</script>
+</body>
+</html>

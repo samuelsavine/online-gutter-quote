@@ -1,70 +1,79 @@
 "use strict";
 
 /* ========================================================================
-   Data layer — localStorage-backed prototype store.
-   Schema is CRM-ready: `contacts` map 1:1 to HubSpot contact properties,
-   `jobs` map to HubSpot deals (dealstage, amount, custom properties).
-   Swap the `read`/`write` pair for a real backend adapter in production.
+   Data layer — localStorage prototype store (swap read/write for a cloud
+   backend later; app code only calls Store.*).
+   Collections:
+     submissions  — homeowner requests (≈ CRM contact + one deal per project)
+     businesses   — service providers; tier "level1" | "associate"
+     users        — staff (admin, sales, expert)
+     audit        — append-only compliance log
    ======================================================================== */
 
 const Store = (() => {
-  const DB_KEY = "ezgq.db.v1";
+  const DB_KEY = "ffp.db.v1";
 
   const uid = (prefix) =>
     `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const now = () => new Date().toISOString();
+
+  const seedBusiness = (b) => ({
+    id: uid("biz"), createdAt: now(), source: "seed", claimed: true, verified: true,
+    tier: "level1", associateSince: null, unlockedLeads: [], serviceStates: [b.state],
+    licenseType: "", ...b,
+  });
 
   const seedDb = () => ({
     settings: {
-      depositAmount: 49,
-      commissionPct: 15,
-      defaultLicenseThreshold: 5000,
-      regions: [
-        { code: "NC-WIL", name: "Wilmington, NC", licenseThreshold: 5000 },
-      ],
+      advancedReportPrice: 49,
+      associateMonthlyPrice: 99,
+      leadUnlockPrice: 25,
+      priceBook: {},      // per-service overrides of catalog pricing
+      stateMult: {},      // per-state overrides of catalog regional multipliers
     },
     users: [
-      { id: "u_admin", email: "admin@ezgutter.com", name: "Avery Admin", role: "admin" },
-      { id: "u_sales", email: "sales@ezgutter.com", name: "Sam Sales", role: "sales" },
+      { id: "u_admin", email: "admin@fastfreepricing.com", name: "Avery Admin", role: "admin" },
+      { id: "u_sales", email: "sales@fastfreepricing.com", name: "Sam Sales", role: "sales" },
+      { id: "u_expert", email: "expert@fastfreepricing.com", name: "Erin Estimator", role: "expert" },
     ],
-    contractors: [
-      {
-        id: "ctr_capefear",
-        company: "Cape Fear Gutters LLC",
-        contactName: "Maria Torres",
-        email: "maria@capefeargutters.com",
-        phone: "(910) 555-0142",
-        licensed: true,
-        licenseNumber: "NC-GC-77812",
-        regions: ["NC-WIL"],
-        ratePerFoot: 7.5,
-        modifiers: { story2Mult: 1.25, story3Mult: 1.55, guardsPerFoot: 4.0, metalRoofMult: 1.2 },
-        docs: [
-          { id: "doc_1", type: "license", name: "nc-gc-license.pdf", uploadedAt: "2026-09-02T14:00:00Z", verified: true },
-          { id: "doc_2", type: "workers-comp", name: "workcomp-cert-2026.pdf", uploadedAt: "2026-09-02T14:05:00Z", verified: true },
-          { id: "doc_3", type: "insurance", name: "gl-policy.pdf", uploadedAt: "2026-09-02T14:06:00Z", verified: true },
-        ],
-      },
-      {
-        id: "ctr_coastal",
-        company: "Coastal Rain Solutions",
-        contactName: "Deshawn Riley",
-        email: "deshawn@coastalrain.com",
-        phone: "(910) 555-0177",
-        licensed: false,
-        licenseNumber: null,
-        regions: ["NC-WIL"],
-        ratePerFoot: 6.75,
-        modifiers: { story2Mult: 1.2, story3Mult: 1.5, guardsPerFoot: 3.5, metalRoofMult: 1.15 },
-        docs: [
-          { id: "doc_4", type: "workers-comp", name: "workcomp-coastal.pdf", uploadedAt: "2026-09-10T10:00:00Z", verified: true },
-        ],
-      },
+    businesses: [
+      seedBusiness({
+        name: "Cape Fear Exteriors LLC", contactName: "Maria Torres", email: "maria@capefearexteriors.com",
+        phone: "(910) 555-0142", city: "Wilmington", state: "NC", zip: "28401",
+        licenseNumber: "NC-GC-77812", licenseType: "General Contractor — Unlimited",
+        services: ["gutters", "roofing", "siding", "windows", "doors"], tier: "associate", associateSince: now(),
+      }),
+      seedBusiness({
+        name: "Coastal Rain Solutions", contactName: "Deshawn Riley", email: "deshawn@coastalrain.com",
+        phone: "(910) 555-0177", city: "Wilmington", state: "NC", zip: "28405",
+        licenseNumber: "", services: ["gutters", "exterior-cleaning"],
+      }),
+      seedBusiness({
+        name: "Port City Plumbing & Air", contactName: "Lena Park", email: "",
+        phone: "(910) 555-0190", city: "Wilmington", state: "NC", zip: "28403",
+        licenseNumber: "NC-PL-30441", licenseType: "Plumbing Class I", source: "import", claimed: false, verified: false,
+        services: ["plumbing", "hvac"],
+      }),
+      seedBusiness({
+        name: "Seaside Decks & Fence", contactName: "Owen Price", email: "",
+        phone: "(910) 555-0123", city: "Leland", state: "NC", zip: "28451",
+        licenseNumber: "NC-GC-81230", licenseType: "General Contractor — Limited", source: "import", claimed: false, verified: false,
+        services: ["decks", "fences", "concrete"],
+      }),
     ],
-    contacts: [],
-    jobs: [],
-    messages: [],
+    submissions: [],
     audit: [],
   });
+
+  const write = (db) => {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+    } catch (e) {
+      // Prototype storage is ~5 MB; photos are thumbnails but can still overflow
+      alert("Prototype storage is full — reset demo data from the admin Settings tab.");
+      throw e;
+    }
+  };
 
   const read = () => {
     try {
@@ -72,227 +81,139 @@ const Store = (() => {
       if (raw) return JSON.parse(raw);
     } catch { /* corrupt db falls through to reseed */ }
     const db = seedDb();
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    write(db);
     return db;
   };
 
-  const write = (db) => localStorage.setItem(DB_KEY, JSON.stringify(db));
-
-  /* ---- audit: every mutation is logged for compliance ---- */
   const log = (db, actor, action, entity, entityId, detail = "") => {
-    db.audit.push({ id: uid("log"), ts: new Date().toISOString(), actor, action, entity, entityId, detail });
+    db.audit.push({ id: uid("log"), ts: now(), actor, action, entity, entityId, detail });
   };
 
-  const api = {
+  const mutate = (fn) => { const db = read(); const out = fn(db); write(db); return out; };
+
+  return {
     uid,
 
-    settings() { return read().settings; },
-
-    saveSettings(patch, actor) {
-      const db = read();
+    /* ---- settings ---- */
+    settings: () => read().settings,
+    saveSettings: (patch, actor) => mutate((db) => {
       Object.assign(db.settings, patch);
-      log(db, actor, "settings.update", "settings", "global", JSON.stringify(patch));
-      write(db);
+      log(db, actor, "settings.update", "settings", "global", Object.keys(patch).join(", "));
       return db.settings;
-    },
+    }),
 
-    regionFor(address) {
-      const db = read();
-      const city = (address.city || "").toLowerCase();
-      return db.settings.regions.find((r) => r.name.toLowerCase().includes(city)) || null;
-    },
+    /* ---- submissions ---- */
+    addSubmission: (data, actor) => mutate((db) => {
+      const sub = { id: uid("sub"), createdAt: now(), status: "quoted", advanced: null, ...data };
+      db.submissions.push(sub);
+      log(db, actor, "submission.create", "submission", sub.id,
+        `${sub.projects.map((p) => p.serviceId).join(", ")} · ${sub.address.city}, ${sub.address.state}`);
+      return sub;
+    }),
+    updateSubmission: (id, patch, actor, action = "submission.update") => mutate((db) => {
+      const sub = db.submissions.find((s) => s.id === id);
+      if (!sub) return null;
+      Object.assign(sub, patch);
+      log(db, actor, action, "submission", id, Object.keys(patch).join(", "));
+      return sub;
+    }),
+    submission: (id) => read().submissions.find((s) => s.id === id) || null,
+    submissions: () => read().submissions,
 
-    licenseThresholdFor(regionCode) {
-      const s = read().settings;
-      const r = s.regions.find((x) => x.code === regionCode);
-      return r ? r.licenseThreshold : s.defaultLicenseThreshold;
-    },
+    /* ---- staff ---- */
+    users: () => read().users,
 
-    /* ---- contacts (≈ HubSpot contacts) ---- */
-    addContact(data, actor) {
-      const db = read();
-      const contact = {
-        id: uid("ct"),
-        createdAt: new Date().toISOString(),
-        firstname: data.firstName,
-        lastname: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        address: data.address.street,
-        city: data.address.city,
-        state: data.address.state,
-        zip: data.address.zip,
-        marketing_consent: !!data.marketingConsent,
-        lifecyclestage: "lead",
+    /* ---- businesses ---- */
+    businesses: () => read().businesses,
+    business: (id) => read().businesses.find((b) => b.id === id) || null,
+    addBusiness: (data, actor, action = "business.create") => mutate((db) => {
+      const biz = {
+        id: uid("biz"), createdAt: now(), tier: "level1", associateSince: null, unlockedLeads: [],
+        claimed: false, verified: false, services: [], serviceStates: [data.state].filter(Boolean), ...data,
       };
-      db.contacts.push(contact);
-      log(db, actor, "contact.create", "contact", contact.id, contact.email);
-      write(db);
-      return contact;
+      db.businesses.push(biz);
+      log(db, actor, action, "business", biz.id, biz.name);
+      return biz;
+    }),
+    updateBusiness: (id, patch, actor, action = "business.update") => mutate((db) => {
+      const biz = db.businesses.find((b) => b.id === id);
+      if (!biz) return null;
+      Object.assign(biz, patch);
+      log(db, actor, action, "business", id, Object.keys(patch).join(", "));
+      return biz;
+    }),
+
+    /* ---- leads: consented submissions a business could service ---- */
+    leadsFor(biz) {
+      return read().submissions.filter((s) =>
+        s.contact.shareWithPros &&
+        biz.serviceStates.includes(s.address.state) &&
+        s.projects.some((p) => biz.services.includes(p.serviceId)));
     },
+    unlockLead: (bizId, subId, payRef, actor) => mutate((db) => {
+      const biz = db.businesses.find((b) => b.id === bizId);
+      if (!biz || biz.unlockedLeads.includes(subId)) return biz;
+      biz.unlockedLeads.push(subId);
+      log(db, actor, "lead.unlock", "submission", subId, `${biz.name} · ${payRef}`);
+      return biz;
+    }),
 
-    /* ---- jobs (≈ HubSpot deals) ---- */
-    addJob(data, actor) {
-      const db = read();
-      const job = {
-        id: uid("job"),
-        createdAt: new Date().toISOString(),
-        dealstage: "lead",                 // lead → deposit_paid → accepted → contracted → final_paid
-        contactId: data.contactId,
-        address: data.address,
-        region: data.region,
-        details: data.details,             // questionnaire answers
-        gutterFeet: data.gutterFeet,
-        photosProvided: data.photosProvided,
-        photoCount: data.photoCount || 0,
-        estimateLow: data.estimateLow,
-        estimateHigh: data.estimateHigh,
-        amount: data.amount,               // customer-facing price (estimate midpoint until verified)
-        commissionPct: db.settings.commissionPct,
-        timeframe: data.timeframe,         // {start, end} ISO dates
-        depositAmount: db.settings.depositAmount,
-        depositPaidAt: null,
-        contractorId: null,
-        acceptedAt: null,
-        contractSignedAt: null,
-        contractSignature: null,
-        payments: [],
-      };
-      db.jobs.push(job);
-      log(db, actor, "job.create", "job", job.id, `est $${job.estimateLow}-$${job.estimateHigh}`);
-      write(db);
-      return job;
-    },
+    /* ---- compliance ---- */
+    audit: () => read().audit,
 
-    updateJob(jobId, patch, actor, action = "job.update") {
-      const db = read();
-      const job = db.jobs.find((j) => j.id === jobId);
-      if (!job) return null;
-      Object.assign(job, patch);
-      log(db, actor, action, "job", jobId, JSON.stringify(Object.keys(patch)));
-      write(db);
-      return job;
-    },
-
-    job(jobId) { return read().jobs.find((j) => j.id === jobId) || null; },
-    jobs() { return read().jobs; },
-    contact(contactId) { return read().contacts.find((c) => c.id === contactId) || null; },
-    contractor(id) { return read().contractors.find((c) => c.id === id) || null; },
-    contractors() { return read().contractors; },
-    users() { return read().users; },
-
-    updateContractor(id, patch, actor, action = "contractor.update") {
-      const db = read();
-      const ctr = db.contractors.find((c) => c.id === id);
-      if (!ctr) return null;
-      Object.assign(ctr, patch);
-      log(db, actor, action, "contractor", id, JSON.stringify(Object.keys(patch)));
-      write(db);
-      return ctr;
-    },
-
-    addContractorDoc(contractorId, doc, actor) {
-      const db = read();
-      const ctr = db.contractors.find((c) => c.id === contractorId);
-      if (!ctr) return null;
-      const record = { id: uid("doc"), uploadedAt: new Date().toISOString(), verified: false, ...doc };
-      ctr.docs.push(record);
-      log(db, actor, "contractor.doc.upload", "contractor", contractorId, `${doc.type}: ${doc.name}`);
-      write(db);
-      return record;
-    },
-
-    /* ---- payments ---- */
-    addPayment(jobId, payment, actor) {
-      const db = read();
-      const job = db.jobs.find((j) => j.id === jobId);
-      if (!job) return null;
-      const record = { id: uid("pay"), ts: new Date().toISOString(), ...payment };
-      job.payments.push(record);
-      if (payment.type === "deposit") {
-        job.depositPaidAt = record.ts;
-        job.dealstage = "deposit_paid";
-      }
-      if (payment.type === "final") job.dealstage = "final_paid";
-      log(db, actor, `payment.${payment.type}`, "job", jobId,
-        `$${payment.amount} (platform $${payment.split.platform} / contractor $${payment.split.contractor})`);
-      write(db);
-      return record;
-    },
-
-    /* ---- messaging: all correspondence stays in-system and logged ---- */
-    addMessage(threadKey, { jobId = null, fromRole, fromName, body }, actor) {
-      const db = read();
-      const msg = {
-        id: uid("msg"), ts: new Date().toISOString(),
-        threadKey, jobId, fromRole, fromName, body,
-      };
-      db.messages.push(msg);
-      log(db, actor, "message.send", "message", msg.id, `${threadKey}: ${body.slice(0, 60)}`);
-      write(db);
-      return msg;
-    },
-
-    thread(threadKey) { return read().messages.filter((m) => m.threadKey === threadKey); },
-    messages() { return read().messages; },
-    audit() { return read().audit; },
-
-    /* ---- CRM export (HubSpot-importable CSVs + full JSON) ---- */
+    /* ---- exports (CRM-ready) ---- */
     toCsv(rows, columns) {
       const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       return [columns.join(","), ...rows.map((r) => columns.map((c) => esc(r[c])).join(","))].join("\n");
     },
-
     exportContactsCsv() {
-      const cols = ["email", "firstname", "lastname", "phone", "address", "city", "state", "zip", "marketing_consent", "lifecyclestage", "createdAt"];
-      return this.toCsv(read().contacts, cols);
-    },
-
-    exportJobsCsv() {
-      const rows = read().jobs.map((j) => ({
-        dealname: `Gutters — ${j.address.street}, ${j.address.city}`,
-        dealstage: j.dealstage,
-        amount: j.amount,
-        estimate_low: j.estimateLow,
-        estimate_high: j.estimateHigh,
-        gutter_feet: j.gutterFeet,
-        region: j.region,
-        contractor: j.contractorId ? (this.contractor(j.contractorId) || {}).company : "",
-        deposit_paid_at: j.depositPaidAt,
-        contract_signed_at: j.contractSignedAt,
-        createdAt: j.createdAt,
+      const rows = read().submissions.map((s) => ({
+        email: s.contact.email, firstname: s.contact.firstName, lastname: s.contact.lastName,
+        phone: s.contact.phone, address: s.address.street, city: s.address.city, state: s.address.state,
+        zip: s.address.zip, property_type: s.universal.G2, ownership: s.universal.G3,
+        marketing_consent: s.contact.marketingConsent, createdate: s.createdAt,
       }));
-      return this.toCsv(rows, ["dealname", "dealstage", "amount", "estimate_low", "estimate_high", "gutter_feet", "region", "contractor", "deposit_paid_at", "contract_signed_at", "createdAt"]);
+      return this.toCsv(rows, Object.keys(rows[0] || { email: "" }));
     },
-
-    exportAuditCsv() {
-      return this.toCsv(read().audit, ["ts", "actor", "action", "entity", "entityId", "detail"]);
+    exportDealsCsv() {
+      const rows = read().submissions.flatMap((s) => s.projects.map((p) => ({
+        dealname: `${p.serviceName} — ${s.address.street}, ${s.address.city}`,
+        contact_email: s.contact.email, service: p.serviceId, dealstage: s.status,
+        estimate_low: p.estimate.low, estimate_high: p.estimate.high,
+        advanced_report: s.advanced ? "yes" : "no", timeframe: s.universal.G4, createdate: s.createdAt,
+      })));
+      return this.toCsv(rows, Object.keys(rows[0] || { dealname: "" }));
     },
-
+    exportBusinessesCsv() {
+      const rows = read().businesses.map((b) => ({
+        name: b.name, contact: b.contactName, email: b.email, phone: b.phone, city: b.city, state: b.state,
+        zip: b.zip, license_number: b.licenseNumber, license_type: b.licenseType, tier: b.tier,
+        services: b.services.join(";"), source: b.source, claimed: b.claimed,
+      }));
+      return this.toCsv(rows, Object.keys(rows[0] || { name: "" }));
+    },
+    exportAuditCsv() { return this.toCsv(read().audit, ["ts", "actor", "action", "entity", "entityId", "detail"]); },
     exportFullJson() { return JSON.stringify(read(), null, 2); },
 
     resetDemo() { localStorage.removeItem(DB_KEY); },
   };
-
-  return api;
 })();
 
 /* ========================================================================
-   Session — thin auth abstraction. Demo: email lookup, no password.
-   Production swap: replace login() with a real auth call; the rest of the
-   app only consumes Session.current().
+   Session — thin auth abstraction. Prototype: email lookup, no password.
+   Production: replace login() with real auth; app only uses Session.current().
    ======================================================================== */
 const Session = (() => {
-  const KEY = "ezgq.session";
-
+  const KEY = "ffp.session";
   return {
     login(email) {
       const norm = email.trim().toLowerCase();
+      if (!norm) return null;
       const user = Store.users().find((u) => u.email === norm);
-      const ctr = Store.contractors().find((c) => c.email === norm);
+      const biz = Store.businesses().find((b) => b.claimed && (b.email || "").toLowerCase() === norm);
       let session = null;
       if (user) session = { role: user.role, name: user.name, email: user.email, userId: user.id };
-      if (ctr) session = { role: "contractor", name: ctr.contactName, email: ctr.email, contractorId: ctr.id };
+      else if (biz) session = { role: "business", name: biz.contactName || biz.name, email: biz.email, businessId: biz.id };
       if (session) sessionStorage.setItem(KEY, JSON.stringify(session));
       return session;
     },
@@ -302,3 +223,35 @@ const Session = (() => {
     logout() { sessionStorage.removeItem(KEY); },
   };
 })();
+
+/* ---------- shared UI helpers ---------- */
+const fmtUsd = (n) => "$" + Math.round(Number(n)).toLocaleString("en-US");
+const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
+const escHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function downloadFile(filename, content, mime = "text/plain") {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Downscale to a small JPEG data URL so prototype photos fit in localStorage
+function imageToThumb(file, maxDim = 640, quality = 0.6) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("not an image")); };
+    img.src = url;
+  });
+}

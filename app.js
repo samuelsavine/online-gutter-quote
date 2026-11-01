@@ -1,745 +1,548 @@
 "use strict";
 
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
 /* ========================================================================
    State
    ======================================================================== */
 const state = {
+  services: [],          // selected service ids, in selection order
   address: {},
-  latLng: null,
-  gutterFeet: null,
-  traceSkipped: false,
-  photoCount: 0,
-  projectType: null,
-  protection: null,
-  height: null,
-  problems: [],
-  fascia: null,
-  downspouts: null,
-  underground: null,
-  reconnect: null,
-  special: [],
+  universal: {},         // G2–G7, G8 photos, G9 delivery
+  answers: {},           // { serviceId: { q1: ..., q11: ... } }
+  generalPhotos: [],     // optional G8 thumbnails
   contact: {},
-  consentMarketing: false,
-  timeframe: { start: null, end: null },
+  submissionId: null,
+  addOnMode: false,      // cross-sell: only ask the new service's questions
 };
 
-/* ========================================================================
-   Step flow — ordered list with conditional visibility
-   ======================================================================== */
-const isReplacement = () =>
-  state.projectType === "replace-all" || state.projectType === "replace-some";
-
-// Escalation: visible rot, 3+ stories, access obstacles, unusual roof conditions
-const needsPhotoReview = () => {
-  const roofFlags = ["metal-roof", "steep-roof", "over-30ft", "difficult-access"];
-  return (
-    state.fascia === "some-damage" ||
-    state.fascia === "significant" ||
-    state.height === "3-plus" ||
-    state.special.some((s) => roofFlags.includes(s))
-  );
-};
-
-const FLOW = [
-  { id: "address" },
-  { id: "measure" },
-  { id: "projectType" },
-  { id: "protection" },
-  { id: "height" },
-  { id: "problems", when: isReplacement },
-  { id: "fascia" },
-  { id: "downspouts" },
-  { id: "underground" },
-  { id: "special" },
-  { id: "photos" },
-  { id: "contact" },
-  { id: "timeframe" },
-  { id: "estimate", noProgress: true },
-  { id: "done", noProgress: true },
-];
-
-// Steps counted in the progress bar (questions only)
-const progressSteps = () => FLOW.filter((s) => !s.noProgress && (!s.when || s.when()));
-const visibleFlow = () => FLOW.filter((s) => !s.when || s.when());
-
-let currentId = "address";
+let steps = [];
+let idx = 0;
 const history = [];
 
 /* ========================================================================
-   DOM helpers
+   Step list — rebuilt whenever services change
    ======================================================================== */
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-const stepEl = (id) => $(`.step[data-step="${id}"]`);
+function buildSteps() {
+  if (state.addOnMode) {
+    steps = [...serviceSteps(state.addOnService), { key: "quote", kind: "quote" }];
+    return;
+  }
+  steps = [
+    { key: "services", kind: "services" },
+    { key: "address", kind: "address" },
+    ...UNIVERSAL.map((qq) => ({ key: qq.id, kind: "question", q: qq })),
+    ...state.services.flatMap(serviceSteps),
+    { key: "G8", kind: "photos" },
+    { key: "G9", kind: "question", q: DELIVERY_Q },
+    { key: "contact", kind: "contact" },
+    { key: "quote", kind: "quote" },
+  ];
+}
+
+function serviceSteps(svcId) {
+  const svc = SERVICES_BY_ID[svcId];
+  return svc.questions.map((qq, i) => ({
+    key: `${svcId}.${qq.id}`, kind: "question", q: qq, service: svc, num: i + 1, of: svc.questions.length,
+  }));
+}
+
+const answerFor = (step) => (step.service ? (state.answers[step.service.id] || {})[step.q.id] : state.universal[step.q.id]);
+
+function setAnswer(step, value) {
+  if (step.service) {
+    state.answers[step.service.id] = state.answers[step.service.id] || {};
+    state.answers[step.service.id][step.q.id] = value;
+  } else {
+    state.universal[step.q.id] = value;
+  }
+}
 
 /* ========================================================================
    Navigation
    ======================================================================== */
-function showStep(id, { back = false } = {}) {
-  $$(".step").forEach((el) => el.classList.remove("active", "anim-back"));
-  const el = stepEl(id);
-  el.classList.add("active");
-  if (back) el.classList.add("anim-back");
-  currentId = id;
-
-  if (id === "measure") initMeasureStep();
-  if (id === "timeframe") initTimeframeStep();
-  if (id === "estimate") renderEstimate();
-
+function show(i, back = false) {
+  idx = i;
+  const step = steps[idx];
+  const view = $("#stepView");
+  view.classList.remove("anim-back");
+  void view.offsetWidth; // restart CSS animation
+  view.classList.toggle("anim-back", back);
+  view.innerHTML = "";
+  RENDER[step.kind](view, step);
   updateProgress();
-  $("#backBtn").disabled = history.length === 0 || id === "done";
+  const locked = step.kind === "quote" || step.kind === "advanced" || step.kind === "done";
+  $("#backBtn").disabled = history.length === 0 || locked;
   window.scrollTo({ top: 0, behavior: "smooth" });
+  const firstInput = $("input, textarea", view);
+  if (firstInput && step.kind !== "services") firstInput.focus({ preventScroll: true });
 }
 
-function goNext() {
-  if (!validateStep(currentId)) return;
-  const flow = visibleFlow();
-  const idx = flow.findIndex((s) => s.id === currentId);
-  if (idx < flow.length - 1) {
-    history.push(currentId);
-    showStep(flow[idx + 1].id);
-  }
+function next() {
+  history.push(idx);
+  if (steps[idx].kind === "services") buildSteps();
+  show(idx + 1);
 }
 
-function goBack() {
+function back() {
   if (!history.length) return;
-  showStep(history.pop(), { back: true });
+  show(history.pop(), true);
 }
 
 function updateProgress() {
-  const steps = progressSteps();
-  const idx = steps.findIndex((s) => s.id === currentId);
-  let pct;
-  let label;
-  if (idx >= 0) {
-    pct = (idx / steps.length) * 100;
-    label = `Step ${idx + 1} of ${steps.length}`;
-  } else {
-    // Interstitial screens (estimate, done) count as complete-ish
-    const passed = history.filter((h) => steps.some((s) => s.id === h)).length;
-    pct = currentId === "done" ? 100 : (passed / steps.length) * 100;
-    label = pct >= 100 ? "Complete" : `${Math.round(pct)}%`;
-  }
+  const total = Math.max(1, steps.length - 1);
+  const pct = Math.min(100, Math.round((idx / total) * 100));
   $("#progressFill").style.width = `${pct}%`;
-  $("#progressLabel").textContent = label;
-  $("#progressBar").setAttribute("aria-valuenow", Math.round(pct));
+  $("#progressBar").setAttribute("aria-valuenow", pct);
+  const step = steps[idx];
+  $("#progressLabel").textContent = step.service
+    ? `${step.service.name} · ${step.num}/${step.of}`
+    : step.kind === "quote" ? "Your estimate" : `${pct}%`;
 }
 
 /* ========================================================================
-   Validation
+   Renderers
    ======================================================================== */
-function markInvalid(input, bad) {
-  input.classList.toggle("invalid", bad);
-  if (bad) input.addEventListener("input", () => input.classList.remove("invalid"), { once: true });
-}
+const tag = (text) => `<span class="step-tag">${escHtml(text)}</span>`;
+const nextBtn = (label = "Continue") => `<button class="btn btn-primary btn-next" data-go>${label}</button>`;
 
-function validateStep(id) {
-  switch (id) {
-    case "address": {
-      const fields = [$("#addrStreet"), $("#addrCity"), $("#addrState"), $("#addrZip")];
-      let ok = true;
-      fields.forEach((f) => {
-        const bad = !f.value.trim();
-        markInvalid(f, bad);
-        if (bad) ok = false;
-      });
-      const zip = $("#addrZip");
-      if (ok && !/^\d{5}(-\d{4})?$/.test(zip.value.trim())) {
-        markInvalid(zip, true);
-        ok = false;
-      }
-      if (ok) {
-        state.address = {
-          street: $("#addrStreet").value.trim(),
-          city: $("#addrCity").value.trim(),
-          state: $("#addrState").value.trim().toUpperCase(),
-          zip: zip.value.trim(),
-        };
-      }
-      return ok;
-    }
-    case "measure": {
-      state.gutterFeet = hasClosedPoly() ? Math.round(tracePerimeterFeet()) : null;
-      return true;
-    }
-    case "problems":
-      return true; // optional multi-select
-    case "underground": {
-      if (!state.underground) return false;
-      if (state.underground === "yes" && !state.reconnect) return false;
-      return true;
-    }
-    case "special":
-      return true;
-    case "timeframe": {
-      const start = $("#tfStart"), end = $("#tfEnd");
-      const today = new Date().toISOString().slice(0, 10);
-      const startBad = !start.value || start.value < today;
-      const endBad = !end.value || end.value < start.value;
-      markInvalid(start, startBad);
-      markInvalid(end, endBad);
-      if (startBad || endBad) return false;
-      state.timeframe = { start: start.value, end: end.value };
-      return true;
-    }
-    case "contact": {
-      const first = $("#firstName"), last = $("#lastName"), email = $("#email"), phone = $("#phone");
-      let ok = true;
-      [first, last].forEach((f) => {
-        const bad = !f.value.trim();
-        markInvalid(f, bad);
-        if (bad) ok = false;
-      });
-      const emailBad = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
-      markInvalid(email, emailBad);
-      if (emailBad) ok = false;
-      const phoneBad = (phone.value.replace(/\D/g, "").length < 10);
-      markInvalid(phone, phoneBad);
-      if (phoneBad) ok = false;
-      if (ok) {
-        state.contact = {
-          firstName: first.value.trim(),
-          lastName: last.value.trim(),
-          email: email.value.trim(),
-          phone: phone.value.trim(),
-        };
-        state.consentMarketing = $("#consentMarketing").checked;
-      }
-      return ok;
-    }
-    default: {
-      // radio steps require a selection
-      const group = $(`.step[data-step="${id}"] [data-type="radio"]`);
-      if (group) return !!state[group.dataset.field];
-      return true;
-    }
-  }
-}
-
-/* ========================================================================
-   Option groups (radios & checkboxes)
-   ======================================================================== */
-$$(".options").forEach((group) => {
-  const field = group.dataset.field;
-  const type = group.dataset.type;
-  const exclusive = (group.dataset.exclusive || "").split(",").filter(Boolean);
-
-  group.addEventListener("click", (e) => {
-    const btn = e.target.closest(".option");
-    if (!btn) return;
-    const value = btn.dataset.value;
-
-    if (type === "radio") {
-      $$(".option", group).forEach((o) => o.classList.remove("selected"));
-      btn.classList.add("selected");
-      state[field] = value;
-
-      if (field === "underground") {
-        $("#undergroundFollowup").classList.toggle("hidden", value !== "yes");
-        if (value !== "yes") {
-          state.reconnect = null;
-          $$('#undergroundFollowup .option').forEach((o) => o.classList.remove("selected"));
-        }
-      }
-
-      if (group.hasAttribute("data-autoadvance")) {
-        setTimeout(goNext, 280);
-      }
-    } else {
-      // checkbox
-      const selected = new Set(state[field]);
-      if (selected.has(value)) {
-        selected.delete(value);
-        btn.classList.remove("selected");
-      } else {
-        if (exclusive.includes(value)) {
-          selected.clear();
-          $$(".option", group).forEach((o) => o.classList.remove("selected"));
-        } else {
-          exclusive.forEach((ex) => {
-            selected.delete(ex);
-            const exBtn = $(`.option[data-value="${ex}"]`, group);
-            if (exBtn) exBtn.classList.remove("selected");
-          });
-        }
-        selected.add(value);
-        btn.classList.add("selected");
-      }
-      state[field] = [...selected];
-    }
-  });
-});
-
-/* ========================================================================
-   Gutter trace — satellite map + auto footprint + editable outline
-   ======================================================================== */
-const trace = { map: null, polys: [[]], active: 0, shapes: [], markers: [], geocoded: null };
-
-const FT_PER_M = 3.28084;
-
-function haversineMeters(a, b) {
-  const R = 6371000, rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad;
-  const dLng = (b.lng - a.lng) * rad;
-  const s = Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
-function polyPerimeterMeters(pts) {
-  if (pts.length < 3) return 0;
-  let m = 0;
-  for (let i = 0; i < pts.length; i++) {
-    m += haversineMeters(pts[i], pts[(i + 1) % pts.length]);
-  }
-  return m;
-}
-
-function tracePerimeterFeet() {
-  return trace.polys.reduce((sum, pts) => sum + polyPerimeterMeters(pts), 0) * FT_PER_M;
-}
-
-const hasClosedPoly = () => trace.polys.some((p) => p.length >= 3);
-
-function setMapStatus(text) {
-  const el = $("#mapStatus");
-  el.textContent = text;
-  el.classList.toggle("hidden", !text);
-}
-
-// Strip unit designators that confuse exact-match geocoders
-function cleanStreet(street) {
-  return street.replace(/\s+(apt|apartment|unit|suite|ste|#|lot|trlr)\.?\s*\S*$/i, "").trim();
-}
-
-async function esriGeocode(oneline) {
-  const params = new URLSearchParams({
-    f: "json", singleLine: oneline, maxLocations: "1", countryCode: "USA", outFields: "Addr_type",
-  });
-  const res = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params}`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  const c = data.candidates?.[0];
-  if (!c || c.score < 80) return null;
-  return { lat: c.location.y, lng: c.location.x, rooftop: c.attributes?.Addr_type === "PointAddress" };
-}
-
-async function censusGeocode(oneline) {
-  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(oneline)}&benchmark=Public_AR_Current&format=json`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const data = await res.json();
-  const match = data.result?.addressMatches?.[0];
-  if (!match) return null;
-  return { lat: match.coordinates.y, lng: match.coordinates.x, rooftop: false };
-}
-
-async function geocodeAddress() {
-  const { street, city, state: st, zip } = state.address;
-  const attempts = [
-    () => esriGeocode(`${street}, ${city}, ${st} ${zip}`),
-    () => esriGeocode(`${cleanStreet(street)}, ${city}, ${st} ${zip}`),
-    () => censusGeocode(`${street}, ${city}, ${st} ${zip}`),
-    () => censusGeocode(`${cleanStreet(street)}, ${city}, ${st} ${zip}`),
-    () => censusGeocode(`${cleanStreet(street)}, ${zip}`),
-    () => esriGeocode(`${zip}`).then((r) => r && { ...r, zipOnly: true }),
-  ];
-  for (const attempt of attempts) {
-    const hit = await attempt().catch(() => null);
-    if (hit) return hit;
-  }
-  throw new Error("address not found");
-}
-
-// Footprint sources, newest-coverage-first fallback:
-// FEMA USA Structures (US gov, comprehensive but vintage ~2018-2021), then
-// Esri-hosted OpenStreetMap buildings (live-updated, catches new construction)
-const FOOTPRINT_SOURCES = [
-  "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0/query",
-  "https://services6.arcgis.com/Do88DoK2xjTUCXd1/arcgis/rest/services/OSM_NA_Buildings/FeatureServer/0/query",
-];
-
-async function fetchFootprint(lat, lng, radiusMeters) {
-  const params = new URLSearchParams({
-    f: "geojson",
-    geometry: `${lng},${lat}`,
-    geometryType: "esriGeometryPoint",
-    inSR: "4326",
-    spatialRel: "esriSpatialRelIntersects",
-    distance: String(radiusMeters),
-    units: "esriSRUnit_Meter",
-    outFields: "OBJECTID",
-    returnGeometry: "true",
-  });
-  let polys = [];
-  for (const source of FOOTPRINT_SOURCES) {
-    try {
-      const res = await fetch(`${source}?${params}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      polys = (data.features || []).filter((f) => f.geometry?.type === "Polygon");
-      if (polys.length) break;
-    } catch { /* try next source */ }
-  }
-  if (!polys.length) return null;
-  // Nearest building by centroid distance
-  let best = null, bestDist = Infinity;
-  for (const f of polys) {
-    const ring = f.geometry.coordinates[0];
-    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-    const d = haversineMeters({ lat, lng }, { lat: cy, lng: cx });
-    if (d < bestDist) { bestDist = d; best = ring; }
-  }
-  const pts = best.map((p) => ({ lat: p[1], lng: p[0] }));
-  if (pts.length > 1 && pts[0].lat === pts[pts.length - 1].lat && pts[0].lng === pts[pts.length - 1].lng) {
-    pts.pop();
-  }
-  return pts;
-}
-
-function updateTraceUI() {
-  const ft = Math.round(tracePerimeterFeet());
-  const badge = $("#footageBadge");
-  badge.classList.toggle("hidden", !hasClosedPoly());
-  $("#footageValue").textContent = ft.toLocaleString("en-US");
-  redrawTrace();
-}
-
-function redrawTrace() {
-  const { map } = trace;
-  trace.shapes.forEach((s) => s.remove());
-  trace.shapes = [];
-  trace.markers.forEach((m) => m.remove());
-  trace.markers = [];
-  if (!map) return;
-
-  trace.polys.forEach((pts, pi) => {
-    const isActive = pi === trace.active;
-    if (pts.length >= 2) {
-      const shape = L.polygon(pts, {
-        color: isActive ? "#38bdf8" : "#818cf8",
-        weight: 3,
-        fillColor: isActive ? "#38bdf8" : "#818cf8",
-        fillOpacity: 0.12,
-      }).addTo(map);
-      shape.on("click", () => {
-        trace.active = pi;
-        redrawTrace();
-      });
-      trace.shapes.push(shape);
-    }
-
-    pts.forEach((pt, i) => {
-      const marker = L.marker(pt, {
-        draggable: true,
-        icon: L.divIcon({ className: `vertex-handle${isActive ? "" : " vertex-dim"}`, iconSize: [14, 14] }),
-      }).addTo(map);
-      marker.on("drag", (e) => {
-        pts[i] = e.target.getLatLng();
-        redrawShapeOnly(pi);
-        $("#footageValue").textContent = Math.round(tracePerimeterFeet()).toLocaleString("en-US");
-      });
-      marker.on("dragend", updateTraceUI);
-      marker.on("dblclick", () => {
-        pts.splice(i, 1);
-        updateTraceUI();
-      });
-      trace.markers.push(marker);
+const RENDER = {
+  services(view) {
+    view.innerHTML = `${tag("Your projects")}
+      <h2>What would you like priced?</h2>
+      <p class="step-hint">Select one or more services — we’ll ask a few questions about each.</p>
+      <div class="service-grid">${SERVICES.map((s) => `
+        <button class="service-tile ${state.services.includes(s.id) ? "selected" : ""}" data-svc="${s.id}">
+          <span class="service-icon">${s.icon}</span><span>${escHtml(s.name)}</span>
+        </button>`).join("")}</div>
+      <p class="field-error hidden" id="svcErr">Choose at least one service.</p>
+      ${nextBtn()}`;
+    $$("[data-svc]", view).forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.svc;
+      state.services = state.services.includes(id) ? state.services.filter((x) => x !== id) : [...state.services, id];
+      b.classList.toggle("selected");
+    }));
+    $("[data-go]", view).addEventListener("click", () => {
+      if (!state.services.length) { $("#svcErr").classList.remove("hidden"); return; }
+      next();
     });
-  });
-}
+  },
 
-// Lightweight shape refresh during vertex drags
-function redrawShapeOnly(polyIdx) {
-  let shapeIdx = -1;
-  for (let pi = 0, si = 0; pi < trace.polys.length; pi++) {
-    if (trace.polys[pi].length >= 2) {
-      if (pi === polyIdx) { shapeIdx = si; break; }
-      si++;
-    }
-  }
-  if (shapeIdx >= 0 && trace.shapes[shapeIdx]) {
-    trace.shapes[shapeIdx].setLatLngs(trace.polys[polyIdx]);
-  }
-}
-
-async function initMeasureStep() {
-  const mapDiv = $("#traceMap");
-
-  if (!trace.map) {
-    trace.map = L.map(mapDiv, { zoomControl: true, attributionControl: true, doubleClickZoom: false });
-    L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }
-    ).addTo(trace.map);
-    trace.map.on("click", (e) => {
-      trace.polys[trace.active].push(e.latlng);
-      updateTraceUI();
+  address(view) {
+    const a = state.address;
+    view.innerHTML = `${tag("Property")}
+      <h2>What is the project address?</h2>
+      <div class="field"><label for="aStreet">Street address</label>
+        <input id="aStreet" autocomplete="street-address" placeholder="123 Main Street" value="${escHtml(a.street || "")}" /></div>
+      <div class="field-row">
+        <div class="field"><label for="aCity">City</label>
+          <input id="aCity" autocomplete="address-level2" value="${escHtml(a.city || "")}" /></div>
+        <div class="field field-sm"><label for="aState">State</label>
+          <input id="aState" autocomplete="address-level1" maxlength="2" placeholder="NC" value="${escHtml(a.state || "")}" /></div>
+        <div class="field field-sm"><label for="aZip">ZIP</label>
+          <input id="aZip" autocomplete="postal-code" inputmode="numeric" maxlength="10" value="${escHtml(a.zip || "")}" /></div>
+      </div>
+      ${nextBtn()}`;
+    $("[data-go]", view).addEventListener("click", () => {
+      const v = (id) => $(id, view).value.trim();
+      const fields = { street: v("#aStreet"), city: v("#aCity"), state: v("#aState").toUpperCase(), zip: v("#aZip") };
+      const bad = {
+        "#aStreet": !fields.street, "#aCity": !fields.city,
+        "#aState": !/^[A-Z]{2}$/.test(fields.state), "#aZip": !/^\d{5}(-\d{4})?$/.test(fields.zip),
+      };
+      Object.entries(bad).forEach(([sel, b]) => markInvalid($(sel, view), b));
+      if (Object.values(bad).some(Boolean)) return;
+      state.address = fields;
+      next();
     });
-  }
-  // Leaflet needs a size recalc after the step becomes visible
-  setTimeout(() => trace.map.invalidateSize(), 50);
+  },
 
-  const addrKey = JSON.stringify(state.address);
-  if (trace.geocoded === addrKey) return; // same address, keep existing trace
-  trace.geocoded = addrKey;
-  trace.polys = [[]];
-  trace.active = 0;
-  updateTraceUI();
+  question(view, step) {
+    const qq = step.q;
+    const heading = step.service ? `${step.service.icon} ${step.service.name}` : "About your project";
+    view.innerHTML = `${tag(heading)}<h2>${escHtml(qq.t)}</h2><div class="q-body"></div>`;
+    QUESTION[qq.type]($(".q-body", view), step, answerFor(step));
+  },
 
-  setMapStatus("Locating your home…");
-  try {
-    const loc = await geocodeAddress();
-    state.latLng = { lat: loc.lat, lng: loc.lng };
+  photos(view) {
+    view.innerHTML = `${tag("Optional")}
+      <h2>Can you upload photos of the project area?</h2>
+      <p class="step-hint">Photos are optional for a free estimate. Wide views, close-ups of damage, and a
+        measurement reference (like a tape measure) help most. <strong>Never climb a ladder or roof.</strong></p>
+      <label class="photo-drop">
+        <input type="file" accept="image/*" multiple hidden />
+        <span class="photo-icon">📷</span><span>Upload or take photos</span>
+      </label>
+      <div class="thumb-row">${state.generalPhotos.map((p) => `<img src="${p.dataUrl}" alt="" />`).join("")}</div>
+      ${nextBtn("Continue")}
+      <button class="btn btn-ghost btn-skip" data-skip>Skip for now</button>`;
+    $("input[type=file]", view).addEventListener("change", async (e) => {
+      for (const f of [...e.target.files].slice(0, 6 - state.generalPhotos.length)) {
+        try { state.generalPhotos.push({ name: f.name, dataUrl: await imageToThumb(f) }); } catch { /* skip non-images */ }
+      }
+      $(".thumb-row", view).innerHTML = state.generalPhotos.map((p) => `<img src="${p.dataUrl}" alt="" />`).join("");
+    });
+    const go = (choice) => { state.universal.G8 = state.generalPhotos.length ? "Uploaded" : choice; next(); };
+    $("[data-go]", view).addEventListener("click", () => go("Skipped"));
+    $("[data-skip]", view).addEventListener("click", () => go("Skipped"));
+  },
 
-    if (loc.zipOnly) {
-      trace.map.setView([loc.lat, loc.lng], 15);
-      setMapStatus("");
-      $("#measureHint").textContent =
-        "We found your ZIP area but not the exact address. Zoom to your home and click the corners of your roofline — or skip this step.";
-      return;
-    }
+  contact(view) {
+    const c = state.contact;
+    view.innerHTML = `${tag("Almost there")}
+      <h2>Where should we send your estimate?</h2>
+      <div class="field-row">
+        <div class="field"><label for="cFirst">First name</label><input id="cFirst" autocomplete="given-name" value="${escHtml(c.firstName || "")}" /></div>
+        <div class="field"><label for="cLast">Last name</label><input id="cLast" autocomplete="family-name" value="${escHtml(c.lastName || "")}" /></div>
+      </div>
+      <div class="field"><label for="cEmail">Email</label><input id="cEmail" type="email" autocomplete="email" value="${escHtml(c.email || "")}" /></div>
+      <div class="field"><label for="cPhone">Mobile phone</label><input id="cPhone" type="tel" autocomplete="tel" inputmode="tel" value="${escHtml(c.phone || "")}" /></div>
+      <div class="consent-box">
+        <label class="consent"><input type="checkbox" checked disabled />
+          <span>We’ll contact you about <strong>this estimate only</strong> (delivery, report status, and questions about your request).</span></label>
+        <label class="consent"><input type="checkbox" id="cMarketing" ${c.marketingConsent ? "checked" : ""} />
+          <span><strong>Optional:</strong> You may contact me by call or text with offers. Consent is not a condition of purchase. Msg &amp; data rates may apply. Reply STOP to opt out.</span></label>
+        <label class="consent"><input type="checkbox" id="cShare" ${c.shareWithPros ? "checked" : ""} />
+          <span><strong>Optional:</strong> Share my request with vetted local service businesses so they can contact me about this project.</span></label>
+      </div>
+      ${nextBtn("See my free estimate")}`;
+    $("[data-go]", view).addEventListener("click", () => {
+      const v = (id) => $(id, view).value.trim();
+      const data = { firstName: v("#cFirst"), lastName: v("#cLast"), email: v("#cEmail"), phone: v("#cPhone") };
+      const bad = {
+        "#cFirst": !data.firstName, "#cLast": !data.lastName,
+        "#cEmail": !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        "#cPhone": data.phone.replace(/\D/g, "").length < 10,
+      };
+      Object.entries(bad).forEach(([sel, b]) => markInvalid($(sel, view), b));
+      if (Object.values(bad).some(Boolean)) return;
+      state.contact = { ...data, marketingConsent: $("#cMarketing", view).checked, shareWithPros: $("#cShare", view).checked };
+      next();
+    });
+  },
 
-    trace.map.setView([loc.lat, loc.lng], 20);
-    setMapStatus("Looking up your home’s outline…");
-    // Street-interpolated points can sit well away from the structure
-    const radius = loc.rooftop ? 40 : 100;
-    const footprint = await fetchFootprint(loc.lat, loc.lng, radius).catch(() => null);
-    if (footprint) {
-      trace.polys = [footprint];
-      trace.active = 0;
-      trace.map.fitBounds(L.latLngBounds(footprint).pad(0.4));
-      $("#measureHint").textContent =
-        "We found your home’s outline. Drag the corner handles to match where gutters go, click the map to add corners, double-click a handle to remove it. Use “Add section” for garages or other structures.";
-    } else {
-      $("#measureHint").textContent =
-        "We couldn’t auto-detect your home’s outline. Click the corners of your roofline on the map to trace where gutters go.";
-    }
-    setMapStatus("");
-    updateTraceUI();
-  } catch {
-    setMapStatus("");
-    trace.map.setView([39.5, -98.35], 4); // US overview fallback
-    $("#measureHint").textContent =
-      "We couldn’t locate that address automatically. Zoom to your home and click the corners of your roofline — or skip this step.";
-  }
-}
+  quote(view) {
+    const sub = saveSubmission();
+    const total = sub.projects.reduce((t, p) => ({ low: t.low + p.estimate.low, high: t.high + p.estimate.high }), { low: 0, high: 0 });
+    const price = Store.settings().advancedReportPrice;
+    const related = [...new Set(sub.projects.flatMap((p) => SERVICES_BY_ID[p.serviceId].related))]
+      .filter((id) => !sub.projects.some((p) => p.serviceId === id)).slice(0, 4);
 
-$("#undoPointBtn").addEventListener("click", () => {
-  const pts = trace.polys[trace.active];
-  if (pts.length) {
-    pts.pop();
-  } else if (trace.polys.length > 1) {
-    trace.polys.splice(trace.active, 1);
-    trace.active = trace.polys.length - 1;
-  }
-  updateTraceUI();
-});
+    view.innerHTML = `
+      <div class="estimate-card">
+        <span class="step-tag tag-good">Your free estimate</span>
+        <h2>${escHtml(sub.contact.firstName)}, here’s what your ${sub.projects.length > 1 ? "projects" : "project"} may cost</h2>
+        <div class="quote-list">${sub.projects.map(projectRow).join("")}</div>
+        ${sub.projects.length > 1 ? `<div class="quote-total"><span>Combined estimate</span><strong>${fmtUsd(total.low)}–${fmtUsd(total.high)}</strong></div>` : ""}
+        <p class="estimate-disclaimer"><strong>This is a non-binding preliminary estimate and may be inaccurate.</strong>
+          Ranges are based on national and ${escHtml(sub.address.state)} regional average pricing and your answers.
+          Measurements, site conditions, permits, and contractor review can change the final price.</p>
+      </div>
 
-$("#addSectionBtn").addEventListener("click", () => {
-  if (trace.polys[trace.active].length > 0 && trace.polys[trace.active].length < 3) return;
-  trace.polys.push([]);
-  trace.active = trace.polys.length - 1;
-  $("#measureHint").textContent =
-    "New section started — click the corners of the garage, shed, or other structure on the map.";
-  updateTraceUI();
-});
+      <div class="estimate-card upsell-card">
+        <span class="step-tag">Advanced Report</span>
+        <h3>Want a more accurate number?</h3>
+        <p class="estimate-sub">A pricing expert reviews your answers and photos of each project area and prepares a
+          detailed, line-item Advanced Report with a narrower price range and notes on what drives your cost.</p>
+        <button class="btn btn-primary btn-lg" id="buyReport">Get my Advanced Report — ${fmtUsd(price)}</button>
+        <p class="estimate-disclaimer">You’ll upload photos of each project area before checkout.</p>
+      </div>
 
-$("#clearTraceBtn").addEventListener("click", () => {
-  trace.polys = [[]];
-  trace.active = 0;
-  updateTraceUI();
-});
+      ${related.length ? `<div class="crosssell">
+        <h3>Planning anything else?</h3>
+        <div class="crosssell-row">${related.map((id) => `
+          <button class="service-tile" data-addon="${id}"><span class="service-icon">${SERVICES_BY_ID[id].icon}</span>
+          <span>Add ${escHtml(SERVICES_BY_ID[id].name)}</span></button>`).join("")}</div>
+      </div>` : ""}
+
+      <p class="estimate-disclaimer"><a href="${reportLink(sub)}">Save your estimate link</a></p>`;
+
+    $("#buyReport").addEventListener("click", () => {
+      history.push(idx);
+      steps.push({ key: "advanced", kind: "advanced" });
+      show(steps.length - 1);
+    });
+    $$("[data-addon]", view).forEach((b) => b.addEventListener("click", () => {
+      state.addOnMode = true;
+      state.addOnService = b.dataset.addon;
+      buildSteps();
+      history.length = 0;
+      show(0);
+    }));
+  },
+
+  advanced(view) {
+    const sub = Store.submission(state.submissionId);
+    const price = Store.settings().advancedReportPrice;
+    state.reportPhotos = state.reportPhotos || {};
+    view.innerHTML = `${tag("Advanced Report")}
+      <h2>Upload photos of each project area</h2>
+      <p class="step-hint">Our experts need at least <strong>2 photos per project</strong> (marked *). Include wide shots
+        and close-ups. <strong>Never climb a ladder or roof</strong> — photos from the ground are fine.</p>
+      ${sub.projects.map((p) => {
+        const svc = SERVICES_BY_ID[p.serviceId];
+        return `<div class="photo-project">
+          <h3>${svc.icon} ${escHtml(svc.name)}</h3>
+          <div class="photo-grid">${svc.photos.map((label, i) => `
+            <label class="photo-slot" data-svc="${svc.id}" data-slot="${i}">
+              <input type="file" accept="image/*" hidden />
+              <span class="photo-icon">📷</span><span>${escHtml(label)}${i < 2 ? " *" : ""}</span>
+            </label>`).join("")}</div>
+        </div>`;
+      }).join("")}
+      <div class="field"><label for="rNotes">Anything the expert should know? (optional)</label>
+        <textarea id="rNotes" rows="3"></textarea></div>
+      <p class="field-error hidden" id="photoErr">Please add the required photos (*) for each project.</p>
+      <button class="btn btn-primary btn-lg" id="payReport">Continue to payment — ${fmtUsd(price)}</button>`;
+
+    $$(".photo-slot", view).forEach((slot) => {
+      const key = `${slot.dataset.svc}:${slot.dataset.slot}`;
+      if (state.reportPhotos[key]) fillSlot(slot, state.reportPhotos[key].dataUrl);
+      $("input", slot).addEventListener("change", async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+          const dataUrl = await imageToThumb(f);
+          state.reportPhotos[key] = { name: f.name, dataUrl, slot: Number(slot.dataset.slot), serviceId: slot.dataset.svc };
+          fillSlot(slot, dataUrl);
+        } catch { /* ignore non-images */ }
+      });
+    });
+
+    $("#payReport").addEventListener("click", async () => {
+      const missing = sub.projects.some((p) => [0, 1].some((i) => !state.reportPhotos[`${p.serviceId}:${i}`]));
+      $("#photoErr").classList.toggle("hidden", !missing);
+      if (missing) return;
+      const result = await Payments.checkout({
+        amount: price,
+        description: `Advanced Report — ${sub.projects.map((p) => p.serviceName).join(", ")} at ${sub.address.street}`,
+      });
+      if (result.status !== "succeeded") return;
+      const photos = {};
+      Object.values(state.reportPhotos).forEach((ph) => {
+        const label = SERVICES_BY_ID[ph.serviceId].photos[ph.slot];
+        (photos[ph.serviceId] = photos[ph.serviceId] || []).push({ label, name: ph.name, dataUrl: ph.dataUrl });
+      });
+      Store.updateSubmission(sub.id, {
+        status: "report_purchased",
+        advanced: {
+          purchasedAt: new Date().toISOString(), paymentRef: result.id, amount: price,
+          customerNotes: $("#rNotes", view).value.trim(), photos, report: null,
+        },
+      }, sub.contact.email, "advanced_report.purchase");
+      history.push(idx);
+      steps.push({ key: "done", kind: "done" });
+      show(steps.length - 1);
+    });
+  },
+
+  done(view) {
+    const sub = Store.submission(state.submissionId);
+    view.innerHTML = `<div class="estimate-card step-center">
+      <div class="done-check">✓</div>
+      <h2>Your Advanced Report is in progress</h2>
+      <p class="estimate-sub">A pricing expert will review your photos and answers. We’ll notify you by
+        ${escHtml((state.universal.G9 || "email").toLowerCase())} when your report is ready.</p>
+      <a class="btn btn-primary" href="${reportLink(sub)}">Check report status</a>
+    </div>`;
+  },
+};
+
+/* ---------- question types ---------- */
+const QUESTION = {
+  single(body, step, current) {
+    const opts = optionsFor(step.q);
+    body.innerHTML = `<div class="options">${opts.map((o) => `
+      <button class="option ${current === o ? "selected" : ""}" data-v="${escHtml(o)}">${escHtml(o)}</button>`).join("")}</div>`;
+    $$(".option", body).forEach((b) => b.addEventListener("click", () => {
+      $$(".option", body).forEach((x) => x.classList.remove("selected"));
+      b.classList.add("selected");
+      setAnswer(step, b.dataset.v);
+      setTimeout(next, 220);
+    }));
+  },
+
+  multi(body, step, current) {
+    const opts = optionsFor(step.q);
+    const sel = new Set(Array.isArray(current) ? current : []);
+    body.innerHTML = `<p class="step-hint">Select all that apply.</p>
+      <div class="options options-grid">${opts.map((o) => `
+        <button class="option option-chip ${sel.has(o) ? "selected" : ""}" data-v="${escHtml(o)}">${escHtml(o)}</button>`).join("")}</div>
+      <p class="field-error hidden">Choose at least one option.</p>${nextBtn()}`;
+    $$(".option", body).forEach((b) => b.addEventListener("click", () => {
+      const v = b.dataset.v;
+      if (sel.has(v)) sel.delete(v);
+      else {
+        // "None"/"Not sure" are mutually exclusive with specific selections
+        if (EXCLUSIVE_RE.test(v)) sel.clear();
+        else [...sel].filter((x) => EXCLUSIVE_RE.test(x)).forEach((x) => sel.delete(x));
+        sel.add(v);
+      }
+      $$(".option", body).forEach((x) => x.classList.toggle("selected", sel.has(x.dataset.v)));
+    }));
+    $("[data-go]", body).addEventListener("click", () => {
+      if (!sel.size) { $(".field-error", body).classList.remove("hidden"); return; }
+      setAnswer(step, [...sel]);
+      next();
+    });
+  },
+
+  number(body, step, current) {
+    const unit = step.q.unit ? ` ${step.q.unit}` : "";
+    body.innerHTML = `<div class="field number-field">
+        <input type="number" min="0" step="1" inputmode="numeric" value="${typeof current === "number" ? current : ""}" />
+        <span class="unit">${escHtml(unit)}</span>
+      </div>
+      <div class="options options-inline">
+        <button class="option option-pill ${isUnsure(current) ? "selected" : ""}" data-unsure>Not sure</button>
+      </div>${nextBtn()}`;
+    const input = $("input", body);
+    $("[data-unsure]", body).addEventListener("click", () => { setAnswer(step, "Not sure"); next(); });
+    const go = () => {
+      const n = parseFloat(input.value);
+      const bad = !(n >= 0);
+      markInvalid(input, bad);
+      if (bad) return;
+      setAnswer(step, n);
+      next();
+    };
+    $("[data-go]", body).addEventListener("click", go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  },
+
+  measure(body, step, current) {
+    const label = step.q.unit === "lf" ? "linear ft" : "sq ft";
+    body.innerHTML = `<div class="field number-field">
+        <input type="number" min="0" step="1" inputmode="numeric" value="${typeof current === "number" ? current : ""}" />
+        <span class="unit">${label}</span>
+      </div>
+      <div class="options options-inline">
+        <button class="option option-pill" data-measure>📐 Measure it on a satellite map</button>
+        <button class="option option-pill ${isUnsure(current) ? "selected" : ""}" data-unsure>Not sure</button>
+      </div>${nextBtn()}`;
+    const input = $("input", body);
+    $("[data-measure]", body).addEventListener("click", async () => {
+      const r = await Measure.open({ address: state.address, mode: step.q.trace });
+      if (r) {
+        input.value = r.value;
+        setAnswer(step, r.value);
+        state.measuredBy = state.measuredBy || {};
+        state.measuredBy[step.key] = r.mode;
+      }
+    });
+    $("[data-unsure]", body).addEventListener("click", () => { setAnswer(step, "Not sure"); next(); });
+    const go = () => {
+      const n = parseFloat(input.value);
+      const bad = !(n > 0);
+      markInvalid(input, bad);
+      if (bad) return;
+      setAnswer(step, n);
+      next();
+    };
+    $("[data-go]", body).addEventListener("click", go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  },
+
+  text(body, step, current) {
+    const optional = step.q.optional;
+    body.innerHTML = `<div class="field"><textarea rows="4" placeholder="${optional ? "Optional" : ""}">${escHtml(current || "")}</textarea></div>
+      ${nextBtn()}${optional ? `<button class="btn btn-ghost btn-skip" data-skip>Skip</button>` : ""}`;
+    const ta = $("textarea", body);
+    $("[data-go]", body).addEventListener("click", () => {
+      const v = ta.value.trim();
+      if (!v && !optional) { markInvalid(ta, true); return; }
+      setAnswer(step, v);
+      next();
+    });
+    const skip = $("[data-skip]", body);
+    if (skip) skip.addEventListener("click", () => { setAnswer(step, ""); next(); });
+  },
+};
 
 /* ========================================================================
-   Pricing — preliminary heuristic, never presented as final
+   Persistence + estimates
    ======================================================================== */
-function estimateRange() {
-  // Per-foot pricing when the user confirmed a trace; flat baseline otherwise
-  let low, high;
-  const heightMult = { "1-story": 1, "2-story": 1.35, "3-plus": 1.7, combo: 1.3 }[state.height] || 1.2;
+function estimateCtx() {
+  const s = Store.settings();
+  return { universal: state.universal, state: state.address.state, priceBook: s.priceBook, stateMult: { ...STATE_MULT, ...s.stateMult } };
+}
 
-  if (state.gutterFeet) {
-    low = state.gutterFeet * 9 * heightMult;
-    high = state.gutterFeet * 13 * heightMult;
-  } else {
-    low = 1400 * heightMult;
-    high = 2400 * heightMult;
-    if (state.projectType === "replace-some") { low *= 0.55; high *= 0.7; }
+function buildProject(svcId) {
+  const svc = SERVICES_BY_ID[svcId];
+  const answers = state.answers[svcId] || {};
+  return { serviceId: svcId, serviceName: svc.name, answers, estimate: estimateProject(svcId, answers, estimateCtx()) };
+}
+
+function saveSubmission() {
+  if (state.addOnMode && state.submissionId) {
+    const sub = Store.submission(state.submissionId);
+    const projects = [...sub.projects.filter((p) => p.serviceId !== state.addOnService), buildProject(state.addOnService)];
+    state.addOnMode = false;
+    return Store.updateSubmission(sub.id, { projects }, sub.contact.email, "submission.add_project");
   }
-
-  if (state.fascia === "some-damage") { high += 500; }
-  if (state.fascia === "significant") { low += 400; high += 1200; }
-
-  if (state.downspouts === "improve") { high += 350; }
-  if (state.underground === "yes" && state.reconnect === "yes") { low += 150; high += 450; }
-
-  const specialAdders = { "screened-porch": 250, "pool-enclosure": 300, "metal-roof": 400, "steep-roof": 350, "over-30ft": 600, "difficult-access": 300 };
-  state.special.forEach((s) => { if (specialAdders[s]) high += specialAdders[s]; });
-
-  const round50 = (n) => Math.round(n / 50) * 50;
-  const guardsLow = round50(low * 1.45), guardsHigh = round50(high * 1.5);
-  low = round50(low);
-  high = round50(high);
-
-  return { low, high, guardsLow, guardsHigh };
-}
-
-const fmt = (n) => "$" + n.toLocaleString("en-US");
-
-function renderEstimate() {
-  const { low, high, guardsLow, guardsHigh } = estimateRange();
-  const alt = $("#estimateAlt");
-
-  const photoNote = state.photoCount > 0 ? " Your photos will speed up verification." : "";
-  $("#estimateBasis").textContent = state.gutterFeet
-    ? `Based on your confirmed outline (~${state.gutterFeet} ft of gutter run):${photoNote}`
-    : `Based on the information you provided:${photoNote}`;
-
-  if (state.protection === "gutters-guards") {
-    $("#estimateRange").textContent = `${fmt(guardsLow)}–${fmt(guardsHigh)}`;
-    alt.classList.add("hidden");
-  } else if (state.protection === "both-pricing") {
-    $("#estimateRange").textContent = `${fmt(low)}–${fmt(high)}`;
-    alt.textContent = `With gutter guards: ${fmt(guardsLow)}–${fmt(guardsHigh)}`;
-    alt.classList.remove("hidden");
-  } else {
-    $("#estimateRange").textContent = `${fmt(low)}–${fmt(high)}`;
-    alt.classList.add("hidden");
-  }
-
-  const deposit = Store.settings().depositAmount;
-  $("#depositExplain").textContent =
-    `Lock in your estimate and get matched with a vetted local contractor with a refundable $${deposit} deposit.`;
-  $("#depositBtn").textContent = `Reserve my quote — $${deposit} deposit`;
-}
-
-/* ========================================================================
-   Timeframe
-   ======================================================================== */
-function initTimeframeStep() {
-  const today = new Date().toISOString().slice(0, 10);
-  $("#tfStart").min = today;
-  $("#tfEnd").min = today;
-  if (!$("#tfStart").value) $("#tfStart").value = today;
-}
-
-$("#tfPresets").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-days]");
-  if (!btn) return;
-  $$("#tfPresets .option").forEach((o) => o.classList.remove("selected"));
-  btn.classList.add("selected");
-  const start = new Date();
-  const end = new Date();
-  end.setDate(end.getDate() + parseInt(btn.dataset.days, 10));
-  $("#tfStart").value = start.toISOString().slice(0, 10);
-  $("#tfEnd").value = end.toISOString().slice(0, 10);
-});
-
-/* ========================================================================
-   Deposit → qualified lead → job posted to contractor board
-   ======================================================================== */
-function customerJobAmount() {
-  const { low, high, guardsLow, guardsHigh } = estimateRange();
-  const withGuards = state.protection === "gutters-guards";
-  return withGuards
-    ? Math.round((guardsLow + guardsHigh) / 2 / 50) * 50
-    : Math.round((low + high) / 2 / 50) * 50;
-}
-
-async function handleDeposit() {
-  const deposit = Store.settings().depositAmount;
-  const result = await Payments.checkout({
-    amount: deposit,
-    description: `Refundable deposit — gutter installation at ${state.address.street}`,
-    lineItems: [{ label: "Qualified-lead deposit (credited to job)", amount: deposit }],
-  });
-  if (result.status !== "succeeded") return;
-
-  const actor = state.contact.email;
-  const contact = Store.addContact(
-    { ...state.contact, address: state.address, marketingConsent: state.consentMarketing },
-    actor
-  );
-  const { low, high } = estimateRange();
-  const region = Store.regionFor(state.address);
-  const job = Store.addJob({
-    contactId: contact.id,
+  if (state.submissionId) return Store.submission(state.submissionId);
+  const sub = Store.addSubmission({
+    contact: state.contact,
     address: state.address,
-    region: region ? region.code : null,
-    details: {
-      projectType: state.projectType,
-      protection: state.protection,
-      height: state.height,
-      problems: state.problems,
-      fascia: state.fascia,
-      downspouts: state.downspouts,
-      underground: state.underground,
-      reconnect: state.reconnect,
-      special: state.special,
-    },
-    gutterFeet: state.gutterFeet,
-    photosProvided: state.photoCount > 0,
-    photoCount: state.photoCount,
-    estimateLow: low,
-    estimateHigh: high,
-    amount: customerJobAmount(),
-    timeframe: state.timeframe,
-  }, actor);
-  Store.addPayment(job.id, {
-    type: "deposit",
-    amount: deposit,
-    stripeId: result.id,
-    split: Payments.computeSplit(job, "deposit"),
-  }, actor);
-
-  $("#trackJobLink").href = `job.html?job=${job.id}&email=${encodeURIComponent(contact.email)}`;
-  history.push(currentId);
-  showStep("done");
+    universal: { ...state.universal },
+    generalPhotos: state.generalPhotos,
+    projects: state.services.map(buildProject),
+  }, state.contact.email);
+  state.submissionId = sub.id;
+  return sub;
 }
 
-/* ========================================================================
-   Photo slots
-   ======================================================================== */
-$$(".photo-slot input").forEach((input) => {
-  input.addEventListener("change", () => {
-    const slot = input.closest(".photo-slot");
-    if (input.files.length && !slot.classList.contains("filled")) {
-      slot.classList.add("filled");
-      slot.querySelector(".photo-icon").textContent = "✅";
-      state.photoCount++;
-    }
-  });
-});
+function projectRow(p) {
+  const svc = SERVICES_BY_ID[p.serviceId];
+  const e = p.estimate;
+  const basis = e.qty != null && UNIT_LABEL[e.unit]
+    ? `Based on ${e.qtyAssumed ? "a typical " : ""}${e.qty.toLocaleString("en-US")} ${UNIT_LABEL[e.unit]}${e.qtyAssumed ? " (measure for a tighter range)" : ""}`
+    : e.qtyAssumed ? "Based on a typical project size" : "Based on your answers";
+  return `<div class="quote-row">
+    <div><strong>${svc.icon} ${escHtml(svc.name)}</strong><p class="quote-basis">${escHtml(basis)}</p></div>
+    <div class="quote-range">${fmtUsd(e.low)}–${fmtUsd(e.high)}</div>
+  </div>`;
+}
+
+const reportLink = (sub) => `report.html?id=${encodeURIComponent(sub.id)}&email=${encodeURIComponent(sub.contact.email)}`;
 
 /* ========================================================================
-   Wiring
+   Helpers + wiring
    ======================================================================== */
-$$("[data-start]").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    $("#hero").classList.add("hidden");
-    $("#quiz").classList.remove("hidden");
-    showStep("address");
-  })
-);
+function markInvalid(el, bad) {
+  el.classList.toggle("invalid", bad);
+  if (bad) el.addEventListener("input", () => el.classList.remove("invalid"), { once: true });
+}
 
-$$("[data-next]").forEach((btn) => btn.addEventListener("click", goNext));
-$("#backBtn").addEventListener("click", goBack);
-$("#depositBtn").addEventListener("click", handleDeposit);
+function fillSlot(slot, dataUrl) {
+  slot.classList.add("filled");
+  slot.style.backgroundImage = `url("${dataUrl}")`;
+}
 
-$("#skipMeasureBtn").addEventListener("click", () => {
-  state.traceSkipped = true;
-  trace.polys = [[]];
-  trace.active = 0;
-  updateTraceUI();
-  goNext();
-});
+function start(preselect) {
+  if (preselect && !state.services.includes(preselect)) state.services.push(preselect);
+  $("#hero").classList.add("hidden");
+  $("#quiz").classList.remove("hidden");
+  buildSteps();
+  show(0);
+}
 
-// Enter advances text-input steps
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.matches("input[type='text'], input[type='email'], input[type='tel']")) {
-    e.preventDefault();
-    goNext();
-  }
-});
+$("#serviceStrip").innerHTML = SERVICES.map((s) =>
+  `<button class="service-chip" data-pre="${s.id}">${s.icon} ${escHtml(s.name)}</button>`).join("");
+$$("[data-pre]").forEach((b) => b.addEventListener("click", () => start(b.dataset.pre)));
+$$("[data-start]").forEach((b) => b.addEventListener("click", () => start()));
+$("#backBtn").addEventListener("click", back);
+
+// Returning customer ordering an Advanced Report from their saved estimate link
+(() => {
+  const p = new URLSearchParams(location.search);
+  const sub = p.get("advanced") && Store.submission(p.get("advanced"));
+  if (!sub || sub.advanced || sub.contact.email.toLowerCase() !== (p.get("email") || "").toLowerCase()) return;
+  state.submissionId = sub.id;
+  state.universal = sub.universal;
+  $("#hero").classList.add("hidden");
+  $("#quiz").classList.remove("hidden");
+  steps = [{ key: "advanced", kind: "advanced" }];
+  show(0);
+})();

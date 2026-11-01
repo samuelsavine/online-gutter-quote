@@ -1,0 +1,247 @@
+Purpose: Gather pricing-critical information without an in-home sales presentation. Universal questions are asked once. Each project has 10 targeted questions plus an optional eleventh free-text response. Unknown is an acceptable answer where measurement or inspection is needed.
+Universal questions — every project
+G1. What is the project address?  |  Street, city, state, ZIP
+G2. What type of property is this?  |  Single-family / townhouse / duplex / condo / commercial / other
+G3. Do you own the property?  |  Yes / no / under contract / property manager
+G4. When would you like the project completed?  |  ASAP / within 30 days / 1–3 months / 3–6 months / researching
+G5. What is your primary objective?  |  Repair / appearance / performance / new installation
+G6. What matters most?  |  Lowest price / value / premium quality / speed
+G7. Are there known access or property restrictions?  |  HOA / gated / historic / difficult access / none / unsure
+G8. Can you upload photos of the project area?  |  Upload / take photos / skip
+G9. How should we send your estimate?  |  Email / text / both
+G10. Contact details  |  Name / mobile / email
+Photo workflow: ask for wide views, close-ups of damage, and a measurement reference when practical. Digital measurements and contractor verification are separate steps; do not represent an unverified estimate as a guaranteed final price.
+Gutters
+1. What work is needed?   New installation / replacement / repair / gutter guards only
+2. Which parts of the home?   Entire home / selected elevations / detached structure
+3. How many stories are served?   1 / 2 / 3+ / varies
+4. Approximate gutter length?   Linear feet / unknown / request digital measurement
+5. Preferred gutter type and size?   5-inch seamless / 6-inch seamless / half-round / unsure
+6. Preferred material and color?   Aluminum / steel / copper / other; color selection
+7. How many downspouts are needed?   Count / reuse existing / unsure
+8. Are gutter guards desired?   No / basic screen / premium protection / unsure
+9. What is the current fascia condition?   Good / damaged or rotted / unsure / no existing fascia
+10. Any unusual drainage or access requirements?   Underground drains / steep roof / high elevations / drainage issues / none
+11. Anything else we should know about your project? Optional open-text response.
+Exterior Doors
+1. Which door locations?   Front / rear / side / patio / garage entry
+2. How many doors?   Count by location
+3. What is the existing opening size?   Width x height / standard / unsure
+4. What door configuration?   Single / double / door with sidelights / sliding / French
+5. Preferred door material?   Fiberglass / steel / wood / aluminum / unsure
+6. How much glass?   Solid / half-lite / full-lite / decorative
+7. Frame replacement scope?   Slab only / prehung frame / unsure
+8. What hardware and security features?   Standard lock / smart lock / upgraded security / reuse
+9. What finish is desired?   Factory painted / stained / unfinished / match existing
+10. Are threshold, trim, or opening repairs needed?   No / threshold / trim / rot / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Windows
+1. How many windows?   Count / unsure
+2. What installation scope?   Replace existing / new openings / mixed
+3. What are the approximate sizes?   Width x height per window / upload schedule / unsure
+4. Which window styles?   Single-hung / double-hung / casement / slider / picture / other
+5. Preferred frame material?   Vinyl / fiberglass / wood / aluminum / unsure
+6. What glass performance?   Standard insulated / Low-E / impact-rated / sound-reducing / unsure
+7. What colors or finishes?   Interior and exterior preferences
+8. What installation method?   Insert / full-frame / unsure
+9. How many windows are on upper floors?   Count / none / unsure
+10. Any damaged sills, trim, or structural concerns?   None / rot / leaks / other / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Siding
+1. What is the project scope?   Whole house / selected walls / repair
+2. What is the approximate wall area?   Square feet / dimensions / unknown
+3. How many stories?   1 / 2 / 3+
+4. What siding exists now?   Vinyl / fiber cement / wood / stucco / brick / other
+5. What material is desired?   Vinyl / fiber cement / engineered wood / metal / unsure
+6. What profile or style?   Horizontal lap / board-and-batten / shake / mixed
+7. What finish and color?   Standard / premium color / custom
+8. Should existing siding be removed?   Yes / install over existing if permitted / unsure
+9. Is insulation or housewrap work desired?   Housewrap / rigid insulation / both / neither / unsure
+10. Are trim, soffit, fascia, or wall repairs needed?   Select all applicable / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Roofing
+1. What is the project scope?   Full replacement / partial replacement / repair / new roof
+2. What roofing material exists?   Asphalt shingle / metal / tile / flat membrane / other
+3. What roofing material is desired?   Architectural shingle / metal / tile / membrane / unsure
+4. What is the approximate roof size?   Squares or square feet / unknown
+5. How many stories and what roof complexity?   Stories; simple / moderate / complex
+6. What is the roof pitch?   Low / moderate / steep / unknown
+7. How many existing roofing layers?   1 / 2+ / unknown
+8. Are there leaks or decking damage?   No / leaks / visible damage / unknown
+9. Which penetrations or accessories are present?   Skylights / chimneys / vents / solar / none
+10. What upgrades are desired?   Underlayment / ventilation / flashing / gutters / none
+11. Anything else we should know about your project? Optional open-text response.
+Flooring
+1. Which rooms are included?   Room list / whole home
+2. What is the approximate area?   Square feet by room / unknown
+3. What flooring exists now?   Carpet / tile / hardwood / vinyl / laminate / concrete
+4. What new flooring is desired?   LVP / hardwood / engineered wood / laminate / tile / carpet
+5. What material quality or price tier?   Economy / midrange / premium / unsure
+6. Should old flooring be removed and hauled away?   Yes / no / partial
+7. What is the subfloor type and condition?   Concrete / wood; good / uneven / damaged / unsure
+8. Will furniture or appliances need moving?   None / light / extensive
+9. Are stairs, transitions, or baseboards included?   Stairs count / transitions / baseboards / none
+10. What layout or installation pattern?   Standard / diagonal / herringbone / other
+11. Anything else we should know about your project? Optional open-text response.
+Bathroom Remodeling
+1. What type of remodel?   Cosmetic refresh / tub-shower conversion / full remodel
+2. What is the bathroom size?   Length x width / square feet / unsure
+3. What bathing configuration is desired?   Keep tub / walk-in shower / tub-shower combo / freestanding tub
+4. Will fixtures stay in their current locations?   All stay / move one / major layout changes
+5. What shower or tub surround material?   Acrylic / fiberglass / tile / solid surface / unsure
+6. What vanity and countertop scope?   Keep / replace; width and material
+7. What toilet, faucets, and fixtures?   Keep / standard replacements / premium
+8. What flooring and wall finishes?   LVP / tile / other; paint / tile
+9. Are electrical, lighting, or ventilation upgrades needed?   Lighting / fan / outlets / none
+10. Are accessibility or water-damage repairs required?   Grab bars / curbless shower / rot / mold / none / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Kitchen Remodeling
+1. What level of remodel?   Refresh / partial / full
+2. What is the approximate kitchen size?   Square feet / dimensions / unsure
+3. What cabinet work is planned?   Paint / reface / replace / add
+4. What countertop material?   Laminate / quartz / granite / solid surface / other
+5. Will the kitchen layout change?   No / minor / walls or plumbing move
+6. What backsplash work is desired?   None / tile / slab / other
+7. Will appliances be replaced or relocated?   Keep / replace / relocate; list
+8. What flooring work is included?   None / replace; material and area
+9. Are plumbing or electrical upgrades required?   Sink / disposal / lighting / outlets / circuits / none
+10. What demolition and finishing are included?   Drywall / painting / trim / removal / none
+11. Anything else we should know about your project? Optional open-text response.
+Decks and Porches
+1. What is the project type?   New deck / replacement / resurfacing / repair / porch
+2. What are the approximate dimensions?   Length x width / unknown
+3. What is the deck height?   Ground-level / elevated / multi-level
+4. Preferred decking material?   Pressure-treated / composite / PVC / hardwood
+5. What structure or framing is required?   Reuse / new / unsure
+6. What railing type and length?   None / wood / metal / composite / glass; length
+7. How many stairs or landings?   Count / none
+8. What foundation or footing conditions?   Concrete / soil / existing posts / unsure
+9. What additional features?   Pergola / lighting / privacy / built-in seating / none
+10. Are demolition or permits anticipated?   Existing removal / permit / HOA / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Fences
+1. What is the project scope?   New / replacement / repair
+2. What approximate fence length?   Linear feet / unknown
+3. What height is desired?   4 / 5 / 6 / 8 feet / other
+4. What material?   Wood / vinyl / aluminum / chain-link / composite
+5. What fence style?   Privacy / semi-privacy / picket / decorative / security
+6. How many gates and what widths?   Pedestrian / double / driveway; count
+7. What is the terrain?   Flat / sloped / mixed
+8. What is the ground condition?   Soil / rock / concrete / unsure
+9. Should existing fencing be removed?   Yes / no / partial
+10. Any boundary, HOA, or pool-code requirements?   Survey / HOA / pool enclosure / none / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Painting
+1. What areas need painting?   Interior / exterior / both
+2. Which rooms or exterior surfaces?   Select areas
+3. What is the approximate paintable area?   Square feet / room dimensions / unknown
+4. What surface materials?   Drywall / wood / masonry / siding / metal
+5. What is the current surface condition?   Good / peeling / cracks / water stains / repairs
+6. What prep work is needed?   Patch / sand / scrape / pressure wash / prime
+7. How many colors and coats?   Color count; standard / major color change
+8. What paint quality and sheen?   Economy / standard / premium; sheen
+9. Are ceilings, trim, doors, or shutters included?   Select all
+10. Any high walls, scaffolding, or occupied-space constraints?   Select all / none
+11. Anything else we should know about your project? Optional open-text response.
+HVAC
+1. What system needs work?   Central AC / heat pump / furnace / mini-split / ductwork
+2. What service is required?   New / replacement / repair / add zone
+3. What is the approximate conditioned area?   Square feet / unknown
+4. How many systems or zones?   Count
+5. What equipment and fuel exist now?   Electric / gas / heat pump / none / unsure
+6. What efficiency level is desired?   Standard / high efficiency / premium / unsure
+7. Will existing ductwork be reused?   Yes / replace / add / no ducts / unsure
+8. What equipment location and access?   Attic / crawlspace / closet / exterior / other
+9. Any comfort or airflow problems?   Hot spots / humidity / noise / none
+10. Any electrical, thermostat, or ventilation upgrades?   Panel / thermostat / filtration / fresh air / none
+11. Anything else we should know about your project? Optional open-text response.
+Water Heaters and Plumbing
+1. What is the project type?   Water heater / fixture / repiping / leak / other
+2. Is this replacement or new installation?   Replace / new / repair
+3. Which fixtures or lines are involved?   List and count
+4. What type of water heater, if applicable?   Tank / tankless / heat pump / not applicable
+5. What fuel or power is available?   Electric / natural gas / propane / unsure
+6. What capacity or household demand?   Gallons / bathrooms / occupants / unsure
+7. Where is the equipment or piping located?   Garage / closet / attic / crawlspace / slab / other
+8. What pipe materials are present?   PEX / copper / PVC / galvanized / unknown
+9. Are walls, floors, or concrete likely to be opened?   Yes / no / unsure
+10. Are leaks, corrosion, or code upgrades involved?   Select all / none / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Electrical and Lighting
+1. What is the project type?   Lighting / outlets / panel / wiring / EV charger / other
+2. How many devices or fixtures?   Counts by type
+3. Where will work be performed?   Rooms / exterior / garage
+4. Is this new work or replacement?   New / replace / relocate
+5. What is the existing electrical service size?   100A / 150A / 200A / unknown
+6. What wiring access is available?   Open walls / attic / crawlspace / finished walls / unknown
+7. What fixture or device quality?   Standard / decorative / smart / premium
+8. Are dedicated circuits required?   EV / appliance / HVAC / other / none
+9. Are switches, dimmers, or automation desired?   Select all
+10. Any known panel, grounding, or code issues?   Yes / no / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Concrete, Driveways and Patios
+1. What surface is being improved?   Driveway / patio / walkway / slab / other
+2. What is the project scope?   New / replace / resurface / repair
+3. What is the approximate area?   Length x width / square feet / unknown
+4. What material or finish?   Broom concrete / stamped / pavers / exposed aggregate / asphalt
+5. What thickness or load use?   Pedestrian / passenger vehicles / heavy vehicles / unsure
+6. What is the site slope and drainage?   Flat / sloped / drainage issues / unsure
+7. Is demolition or excavation required?   Yes / no / unsure
+8. What base or soil conditions exist?   Stable / soft / tree roots / unknown
+9. Are reinforcement or expansion joints specified?   Standard / upgraded / unsure
+10. Any borders, steps, retaining edges, or decorative features?   Select all / none
+11. Anything else we should know about your project? Optional open-text response.
+Insulation
+1. Which areas need insulation?   Attic / walls / crawlspace / garage / other
+2. Is this new insulation or an upgrade?   New / add / remove and replace
+3. What is the approximate area?   Square feet / unknown
+4. What insulation type is preferred?   Blown fiberglass / cellulose / batt / spray foam / unsure
+5. What existing insulation is present?   Type / depth / unknown
+6. What target performance?   Code minimum / higher efficiency / unsure
+7. How accessible is the work area?   Open / restricted / finished / unsure
+8. Are air sealing or vapor barriers needed?   Yes / no / unsure
+9. Any moisture, pest, or mold issues?   Yes / no / unsure
+10. Any ventilation, recessed light, or combustion-safety concerns?   Select all / none / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Garage Doors
+1. How many garage doors?   Count
+2. What are the opening dimensions?   Width x height per opening / unknown
+3. What is the work scope?   Door replacement / opener / both / repair
+4. What door material?   Steel / aluminum / wood / composite / unsure
+5. What style?   Traditional / carriage / contemporary / full-view
+6. What insulation level?   None / insulated / high insulation
+7. What window and color options?   Windows yes/no; finish
+8. What opener type?   Reuse / chain / belt / wall-mount / smart
+9. What is the track and headroom condition?   Standard / low clearance / unsure
+10. Are removal, framing, or spring upgrades required?   Select all / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Solar and Battery
+1. What system is desired?   Solar / battery / both
+2. What is the installation location?   Roof / ground / carport
+3. What is average monthly electricity use?   kWh / bill amount / unknown
+4. What roof material and age?   Type; approximate age / unknown
+5. What roof shading or orientation?   Minimal / partial / heavy / unsure
+6. What system objective?   Lower bills / backup power / maximize offset
+7. What backup loads or duration?   Essentials / whole home; hours
+8. What is the existing electrical service?   Panel rating / unknown
+9. What purchase preference?   Cash / financing / undecided
+10. Any HOA, utility, or roof replacement constraints?   Select all / none / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Exterior Cleaning and Pressure Washing
+1. What surfaces need cleaning?   Siding / roof / driveway / deck / fence / gutters
+2. What is the approximate area?   Square feet / linear feet / unknown
+3. How many stories or access levels?   1 / 2 / 3+
+4. What surface materials?   Vinyl / brick / wood / concrete / shingles / other
+5. What is the main problem?   Dirt / algae / mildew / oil / rust / other
+6. How severe is the buildup?   Light / moderate / heavy
+7. When was it last cleaned?   Within year / 1–3 years / longer / unknown
+8. Are delicate surfaces or landscaping nearby?   Yes / no / unsure
+9. Is sealing, staining, or gutter brightening desired?   Select all / none
+10. Are water access or drainage restrictions present?   Yes / no / unsure
+11. Anything else we should know about your project? Optional open-text response.
+Implementation guidance
+Display one question at a time or in short groups, with a progress indicator; branch based on the project scope.
+Allow “not sure” rather than forcing false precision; ask for photos or measurements when the answer materially changes price.
+Separate preliminary pricing, measurement verification, permit/code review, and final contractor acceptance.
+Store responses in structured fields so each category can connect to its own pricing engine and contractor rate card.
+Offer adjacent-project cross-sells only after the initial estimate is delivered.
