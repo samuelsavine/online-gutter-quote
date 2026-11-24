@@ -1,87 +1,70 @@
-# FastFreePricing — Home Improvement Pricing Prototype
+# FastFreePricing — Home Improvement Pricing Prototype (Phase 1)
 
 **Live demo:** https://samuelsavine.github.io/online-gutter-quote/
+**Homeowner dashboard:** https://samuelsavine.github.io/online-gutter-quote/account.html
+**Pro & team portal:** https://samuelsavine.github.io/online-gutter-quote/portal.html
 
-**Business & team portal:** https://samuelsavine.github.io/online-gutter-quote/portal.html
+Homeowners get a **free Good / Better / Best price range** for a home project. They can then unlock a **paid report** (currently $99 list → $0 launch price). The paid report includes a refined price, a detailed questionnaire, name-your-price tips, contractor-quote comparison, and pro matching. Contractors join through staff invitation or self sign-up, are approved by an admin, and buy leads manually or automatically.
 
-Homeowners get a **free price estimate** for one or more home-improvement projects based on national/regional average pricing, then can buy an **expert Advanced Report** by uploading photos of each project area. Service businesses get a profile (pre-built from license records or self-created) and can upgrade to **Associate** to access leads.
+> This is a **static prototype**: all data lives in your browser's localStorage, so each visitor gets their own sandbox. Reset it from **Admin → Settings → Reset all**.
 
 ### Demo accounts (no passwords)
 
-| Email | Role |
+| Email | Where | Role |
+|---|---|---|
+| admin@fastfreepricing.com | portal.html | Admin: everything, including **Pricing formula** |
+| sales@fastfreepricing.com | portal.html | Sales: overview, projects, contractors |
+| expert@fastfreepricing.com | portal.html | Expert: projects |
+| maria@capefearexteriors.com | portal.html | Approved member contractor, auto-buy on |
+| deshawn@coastalrain.com | portal.html | Invited contractor (runs through onboarding) |
+| any homeowner email you used in the wizard | account.html | Homeowner dashboard |
+
+## Homeowner flow (index.html → account.html)
+
+1. Pick a category, enter an address, and confirm the house on a satellite map. The pin can be dragged, and a Google Earth link is provided.
+2. Answer the general questions (property type, timeline, …) and the **short** category questionnaire. "Not sure" is always allowed and widens the range.
+3. Contractor opt-in is **A/B tested**: variant A asks before the free price, variant B after. The split is set in Settings and results show in Overview.
+4. The **free report** shows Good/Better/Best ranges, a summary, and citations (Cost vs Value, Homewyse, admin-entered sources). It also offers the paid report ($99 struck through → $0).
+5. Unlock flow: photos (with a guide; skippable), account, then an **ownership check**. A mismatch requires a reason.
+6. The **dashboard** shows the refined price with rationale, a detailed questionnaire, name-your-price (budget slider with tips), quote comparison (flags price, quantity, removal, and warranty gaps), photos, pro matching, cost vs value, and print-to-PDF.
+
+## Portal (portal.html)
+
+- **Pricing formula (admin only):** for each category, set the unit, the minimum, and per-tier rates. You can attach a modifier to every questionnaire answer:
+  - **× Multiply** scales the price.
+  - **+ Add $** adds a fixed amount.
+  - **= Value** turns the answer into a number.
+
+  Variables can act as **quantity**, **per-unit cost**, or **scale** (value ÷ reference)^exponent. The page has a live formula readout and a tester, and every save is audited.
+  `Price[tier] = max(min × region, (rate × qty × scale × Πmult + Σadd + Σper-unit) × region × general)`
+- **Questionnaires:** add, edit, reorder, and delete questions and options, and set short vs detailed stage.
+- **Categories:** name, icon, active flag, sources (`Label | url`), ROI note, and photo guide.
+- **Contractors:** invite, approve, or reject. Onboarding covers the welcome tour, business details, credential upload, and terms.
+- **Leads (contractor):** buy manually or use auto-buy with a monthly cap; max buyers per lead applies. Contractors can report a bad lead, and an admin approves or denies the refund.
+- **Billing:** receivables aging plus a membership placeholder (card surcharge setting; ACH has no surcharge).
+- **Overview:** projects, leads, and revenue by period; category traction; top ZIPs; A/B results.
+- **Settings and Compliance:** prices, spreads, GA4 ID, A/B split; CSV/JSON exports; audit log.
+
+## Integrations status
+
+| Integration | Status |
 |---|---|
-| admin@fastfreepricing.com | Admin — submissions, report queue, businesses + CSV import, price book, settings, compliance |
-| sales@fastfreepricing.com | Sales — submissions, businesses |
-| expert@fastfreepricing.com | Expert — Advanced Report queue and editor |
-| maria@capefearexteriors.com | Associate business — lead board + lead unlocks |
-| deshawn@coastalrain.com | Level 1 business — profile only, lead-count teaser |
+| Geocoding / footprints / imagery | Esri + Census, FEMA + OSM buildings, Esri World Imagery (free, US-based) |
+| Google Earth | Link-out only. Google imagery and 3D Tiles may not be used for measuring or derived data. |
+| Ownership (Regrid) | **Simulated.** The Regrid token must stay on a server, so a backend proxy is needed before going live. |
+| GA4 | Loads only after a Measurement ID (`G-XXXXXXX`) is entered in Settings |
+| Payments, OAuth, email PDF, AI summary/quote extraction | Placeholders |
 
-Unclaimed imported listings (e.g. search “Seaside” or `NC-PL-30441`) can be claimed from the portal sign-in screen.
+> ⚠ **All rates and modifiers are placeholders**. Replace them with vetted data in the Pricing formula page. Cost vs Value and Homewyse are copyrighted and have no API, so figures are entered by admins with citations.
 
-Prototype data lives in your browser's localStorage — each visitor gets their own sandbox. Reset it from **Admin → Settings**.
+## Files
 
-## Homeowner flow
+`catalog.js` (seed categories/questions) · `pricing.js` (formula engine) · `store.js` (data layer, the only file to swap for a cloud DB) · `services.js` (analytics, ownership) · `report.js` · `measure.js` · `payments.js` · `app.js` / `account.js` / `portal.js`.
 
-1. **Choose services** — any of the 19 services in [home_improvement_questionnaire.txt](home_improvement_questionnaire.txt); multiple per request.
-2. **Universal questions** (G1–G7) asked once: address, property type, ownership, timeline, objective, priority, access restrictions.
-3. **Per-service questions** (10 each + optional free text), one per screen. “Not sure” is always allowed and widens the range instead of forcing false precision.
-4. **Satellite measurement** offered where size drives price: gutters (perimeter), roofing (roof area × pitch), siding (wall area), fences (line length), decks and concrete (area).
-5. Optional photos (G8), delivery preference (G9), contact details + consent (G10).
-6. **Free estimate** per project plus a combined range, with a non-binding disclaimer. Adjacent services are cross-sold only after the estimate (“Add Roofing” appends a project to the same request).
-7. **Advanced Report** upsell: required photo slots per project (2 required each), optional notes, then checkout (**payment placeholder**). The homeowner tracks status and reads the published report at `report.html`.
+## Phase 2
 
-## Business & team portal ([portal.html](portal.html))
-
-- **Level 1 businesses** — profile with services offered and states served. Created by self sign-up, or pre-built from a license-record CSV import and later claimed.
-- **Associates** (membership, **payment placeholder**) — lead board filtered to their services and states; each lead shows city/ZIP, timeline, and estimate range. Contact details, full answers, and photos unlock per lead (**payment placeholder**). Only homeowners who opted in to sharing appear as leads.
-- **Experts** — queue of purchased Advanced Reports: review answers and photos, set per-project ranges, add line items and notes, save drafts, publish to the homeowner.
-- **Admins** — all of the above plus CSV import (license number/type → services mapping, duplicate skipping), business verification, **price book** (per-service unit prices and per-state multipliers), pricing settings (report, membership, lead unlock), and compliance exports.
-
-## Pricing engine
-
-Each service has a pricing model in [catalog.js](catalog.js): base unit range (per linear ft / sq ft / unit / job), answer-based multipliers and add-ons, a minimum job size, a regional multiplier by state, and adjustments from universal answers (e.g. historic property, premium priority).
-
-> ⚠ **All price values are placeholders.** They're admin-editable in the price book and must be replaced with vetted data before launch.
-
-Pricing-data research: no free API provides consumer-facing remodeling prices. Cost vs Value (Zonda/JLC) is copyrighted, has no API, and covers ~20 fixed-scope projects; RSMeans (from $396/yr) has unit costs and location factors for 970 locations but needs an enterprise license to show derived prices publicly; Angi/HomeAdvisor/Homewyse prohibit scraping. The price book is structured so licensed data can be loaded into it later.
-
-## Data model (CRM-ready)
-
-- `submissions` — contact, address, universal answers, `projects[]` (service, answers, estimate), optional `advanced` (photos, payment reference, expert report). Exports as HubSpot contacts plus one deal per project.
-- `businesses` — profile, license, services, states served, tier, unlocked leads, source (`seed` / `import` / `self`), claimed/verified flags.
-- `audit` — every submission, purchase, report publish, lead unlock, import, claim, and settings change, with actor and timestamp.
-
-All data access goes through [store.js](store.js), so moving to a cloud database replaces only that file's read/write internals.
-
-## Satellite measurement stack (free, US-based)
-
-| Function | Service |
-|---|---|
-| Geocoding | Esri World Geocoder → US Census geocoder fallback |
-| Building footprints | FEMA USA Structures → Esri-hosted OpenStreetMap buildings fallback |
-| Imagery | Esri World Imagery |
-| Map UI | Leaflet |
-
-## Not yet implemented
-
-- Cloud database, real authentication, and business ownership verification for claims.
-- Payment processing: Advanced Report, Associate membership, and lead unlocks all use [payments.js](payments.js) placeholders (planned: Stripe Checkout one-time and subscription).
-- Notifications (email/text) for estimate delivery and report publication.
-- Full-resolution photo storage (prototype keeps small thumbnails in localStorage).
-- Licensed pricing data.
-
-## Future implementation plan
-
-- **Mapillary street-level imagery** — free, crowdsourced street-level views beside the satellite map (progressive enhancement; coverage varies).
-- **Photogrammetry** — COLMAP from homeowner photos/video, scaled to the satellite trace, to help experts measure.
-- **Paid imagery** — Nearmap (5.5–7.5 cm, measurement rights included) when volume justifies it.
+Full business dashboards, invoicing/ACH, blog, a real backend (auth, OAuth, email, Regrid proxy), AI summaries, and quote extraction.
 
 ## Running locally
 
-Static site, no build step:
-
-```
-git clone https://github.com/samuelsavine/online-gutter-quote.git
-```
-
-Open `index.html` in a browser (the portal is `portal.html`).
+A static site with no build step. Open `index.html` in a browser.

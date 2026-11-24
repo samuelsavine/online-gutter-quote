@@ -3,33 +3,30 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>FastFreePricing — Business &amp; Team Portal</title>
+<title>FastFreePricing — Pro &amp; Team Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="portal-body">
+<body class="portal">
 
-<nav class="nav">
-  <a class="logo" href="index.html"><span class="logo-mark">FFP</span> FastFreePricing</a>
-  <div class="nav-right">
-    <span id="whoami" class="whoami hidden"></span>
-    <button class="btn btn-ghost btn-sm hidden" id="logoutBtn">Sign out</button>
-  </div>
-</nav>
+<header class="site-header">
+  <a class="brand" href="index.html"><span class="brand-mark">F</span>FastFreePricing <span class="brand-sub">Portal</span></a>
+  <nav class="site-nav">
+    <span id="who" class="who"></span>
+    <button class="btn btn-ghost btn-sm hidden" id="signOut">Sign out</button>
+  </nav>
+</header>
 
-<main class="portal-login" id="loginView"></main>
+<main class="dash" id="app"></main>
 
-<main class="portal hidden" id="portalView">
-  <div class="tabs" id="tabs"></div>
-  <div id="tabContent"></div>
-</main>
-
-<footer class="footer"><p>© 2026 FastFreePricing · All portal activity is logged for compliance.</p></footer>
+<footer class="site-footer"><p>© 2026 FastFreePricing · All portal activity is logged for compliance.</p></footer>
 
 <script src="catalog.js"></script>
 <script src="store.js"></script>
+<script src="pricing.js"></script>
+<script src="report.js"></script>
 <script src="payments.js"></script>
 <script src="portal.js"></script>
 </body>

@@ -635,93 +635,90 @@ const STATE_MULT = {
   SC: 0.92, SD: 0.9, TN: 0.92, TX: 0.93, UT: 0.98, VT: 1.05, VA: 1.0, WA: 1.15, WV: 0.9, WI: 1.0, WY: 0.95,
 };
 
-const UNIT_LABEL = { lf: "linear ft", sqft: "sq ft", each: "", job: "" };
+/* ========================================================================
+   Seed config — converts the catalog above into the admin-editable format.
+   Each question becomes a pricing variable; options carry modifiers:
+     mod.type: "none" | "mult" (×) | "add" (+$) | "value" (= number)
+     mod.good / mod.better / mod.best: per-tier amounts
+   Number questions carry a role: "none" | "quantity" | "perUnit" | "scale".
+   ======================================================================== */
+const TIERS = ["good", "better", "best"];
+const TIER_LABEL = { good: "Good", better: "Better", best: "Best" };
+const TIER_DESC = { good: "Builder-grade", better: "Mid-range", best: "Upscale" };
+const UNIT_LABEL = { lf: "linear ft", sqft: "sq ft", each: "units", job: "job" };
 
-/* ---------- options helpers ---------- */
-function optionsFor(question) {
+const tierSame = (v) => ({ good: v, better: v, best: v });
+const r2 = (n) => Math.round(n * 100) / 100;
+
+// Reference links for REQ-05 — placeholders until the data team supplies sourced values
+const COMMON_SOURCES = [
+  { label: "Remodeling Cost vs. Value Report (Zonda/JLC)", url: "https://www.costvsvalue.com/" },
+  { label: "Homewyse cost calculators", url: "https://www.homewyse.com/" },
+];
+const EXTRA_SOURCES = {
+  windows: [{ label: "ENERGY STAR — Windows, Doors & Skylights", url: "https://www.energystar.gov/products/residential_windows_doors_and_skylights" }],
+  doors: [{ label: "ENERGY STAR — Windows, Doors & Skylights", url: "https://www.energystar.gov/products/residential_windows_doors_and_skylights" }],
+  hvac: [{ label: "ENERGY STAR — Heating & Cooling", url: "https://www.energystar.gov/products/heating_cooling" }],
+  insulation: [{ label: "DOE Energy Saver — Insulation", url: "https://www.energy.gov/energysaver/insulation" }],
+  solar: [{ label: "DSIRE — State incentives for renewables", url: "https://www.dsireusa.org/" }, { label: "DOE Homeowner's Guide to Going Solar", url: "https://www.energy.gov/eere/solar/homeowners-guide-going-solar" }],
+  painting: [{ label: "EPA Lead-Safe Renovation (pre-1978 homes)", url: "https://www.epa.gov/lead/renovation-repair-and-painting-program" }],
+  plumbing: [{ label: "ENERGY STAR — Water Heaters", url: "https://www.energystar.gov/products/water_heaters" }],
+};
+
+function optionLabels(question) {
   if (!question.o) return null;
   const opts = question.o.slice();
   if (!opts.some((o) => UNSURE_RE.test(o))) opts.push("Not sure");
   return opts;
 }
 
-const isUnsure = (v) => typeof v === "string" && UNSURE_RE.test(v);
-
-/* ---------- estimate engine ---------- */
-const round50 = (n) => Math.round(n / 50) * 50;
-const asList = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
-
-function lookup(map, value) {
+function findIn(map, label) {
   if (!map) return undefined;
-  const key = slug(value);
+  const key = slug(label);
   for (const k of Object.keys(map)) if (slug(k) === key) return map[k];
   return undefined;
 }
 
-function universalMultiplier(u) {
-  let m = 1;
-  for (const [g, map] of Object.entries(UNIVERSAL_MULT)) {
-    asList(u[g]).forEach((v) => { const f = lookup(map, v); if (f) m *= f; });
-  }
-  return m;
+function seedCategories() {
+  return SERVICES.map((s) => {
+    const p = s.pricing;
+    const mid = (p.low + p.high) / 2;
+    const perMap = Object.fromEntries((p.per || []).map((pc) => [pc.q, pc]));
+    const questions = s.questions.map((qq, i) => {
+      const priced = qq.id === p.qty || (p.mult && p.mult[qq.id]) || (p.add && p.add[qq.id]) || perMap[qq.id] || (p.scale && p.scale.q === qq.id);
+      const out = {
+        id: qq.id, text: qq.t, type: qq.type === "measure" ? "number" : qq.type,
+        unit: qq.unit || "", trace: qq.trace || null, optional: !!qq.optional,
+        stage: (i < 4 || qq.id === p.qty || (priced && i < 6)) && qq.type !== "text" ? "short" : "detailed",
+        role: "none", rate: tierSame(0), ref: 0, exp: 1, defaultQty: 0,
+      };
+      if (qq.id === p.qty) { out.role = "quantity"; out.defaultQty = p.def; }
+      if (perMap[qq.id]) { out.role = "perUnit"; out.rate = { good: perMap[qq.id].low, better: r2((perMap[qq.id].low + perMap[qq.id].high) / 2), best: perMap[qq.id].high }; }
+      if (p.scale && p.scale.q === qq.id) { out.role = "scale"; out.ref = p.scale.ref; out.exp = p.scale.exp; }
+      const labels = optionLabels(qq);
+      if (labels) {
+        out.options = labels.map((label) => {
+          const m = findIn(p.mult?.[qq.id], label);
+          const a = findIn(p.add?.[qq.id], label);
+          const mod = m ? { type: "mult", ...tierSame(m) }
+            : a ? { type: "add", good: a[0], better: r2((a[0] + a[1]) / 2), best: a[1] }
+            : { type: "none", ...tierSame(0) };
+          return { id: slug(label), label, mod };
+        });
+      }
+      return out;
+    });
+    return {
+      id: s.id, name: s.name, icon: s.icon, active: true,
+      unit: p.unit, min: p.min,
+      rate: { good: r2(p.low), better: r2(mid), best: r2(p.high * 1.15) },
+      questions,
+      photos: s.photos,
+      related: s.related,
+      sources: [...COMMON_SOURCES, ...(EXTRA_SOURCES[s.id] || [])],
+      roiNote: "Cost vs. value / ROI data for this category is pending the data-source decision (REQ-17).",
+    };
+  });
 }
 
-function estimateProject(svcId, answers, ctx) {
-  const svc = SERVICES_BY_ID[svcId];
-  const p = { ...svc.pricing, ...((ctx.priceBook || {})[svcId] || {}) };
-  const region = STATE_MULT_OVERRIDE(ctx) ?? 1;
-
-  let qty = 1, qtyAssumed = false;
-  if (p.qty) {
-    const v = answers[p.qty];
-    if (typeof v === "number" && v > 0) qty = v;
-    else { qty = p.def; qtyAssumed = true; }
-  }
-  let low = p.unit === "job" ? p.low : qty * p.low;
-  let high = p.unit === "job" ? p.high : qty * p.high;
-
-  if (p.scale) {
-    const v = answers[p.scale.q];
-    if (typeof v === "number" && v > 0) {
-      const f = Math.pow(v / p.scale.ref, p.scale.exp);
-      low *= f; high *= f;
-    } else qtyAssumed = true;
-  }
-
-  let mult = 1;
-  for (const [qid, map] of Object.entries(p.mult || {})) {
-    asList(answers[qid]).forEach((v) => { const f = lookup(map, v); if (f) mult *= f; });
-  }
-  low *= mult; high *= mult;
-
-  for (const [qid, map] of Object.entries(p.add || {})) {
-    asList(answers[qid]).forEach((v) => { const a = lookup(map, v); if (a) { low += a[0]; high += a[1]; } });
-  }
-  for (const pc of p.per || []) {
-    const v = answers[pc.q];
-    if (typeof v === "number" && v > 0) { low += v * pc.low; high += v * pc.high; }
-  }
-
-  const factor = universalMultiplier(ctx.universal || {}) * region;
-  low *= factor; high *= factor;
-
-  // "Not sure" answers widen the top of the range rather than guessing
-  const unsureCount = Object.values(answers).flat().filter(isUnsure).length;
-  high *= Math.min(1 + 0.04 * unsureCount, 1.3);
-  if (qtyAssumed) { low *= 0.85; high *= 1.2; }
-
-  low = Math.max(low, p.min * region);
-  high = Math.max(high, low * 1.25);
-
-  return {
-    low: round50(low), high: round50(high),
-    qty: p.qty ? Math.round(qty) : null, unit: p.unit, qtyAssumed, unsureCount,
-    regionFactor: region,
-  };
-}
-
-function STATE_MULT_OVERRIDE(ctx) {
-  const st = (ctx.state || "").toUpperCase();
-  const table = ctx.stateMult || STATE_MULT;
-  return table[st];
-}
+const isUnsure = (v) => typeof v === "string" && UNSURE_RE.test(v);
